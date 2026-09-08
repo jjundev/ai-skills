@@ -22,6 +22,30 @@ description: >
 
 ---
 
+## 0. 사전 점검 및 환경 설정 (Setup & Self-Healing)
+
+본 스킬(`ask-dc`) 및 `write-dc` 스킬은 로컬 OpenCLI DCInside 어댑터(`opencli dcinside`)를 백엔드로 사용합니다.
+어댑터 소스 코드는 형상 관리 및 단일 진실 공급원(SSOT) 유지를 위해 **`ask-dc/adapter/`**에 위치하며, OpenCLI 디렉토리(`~/.opencli/clis/dcinside`)로 심볼릭 링크되어 구동됩니다.
+
+### 환경 진단 및 자동 복구 (Self-Healing)
+`opencli dcinside` 명령어가 없거나 모듈 오류가 발생할 경우 다음 절차에 따라 복구합니다:
+
+1. **사전 필수 요구사항 확인**:
+   - Node.js (v20 이상): `node -v`
+   - OpenCLI 전역 CLI: `command -v opencli` (미설치 시 `npm install -g @jackwener/opencli`)
+
+2. **자동 복구 및 설정 스크립트 실행**:
+   ```bash
+   bash ~/.ai-skills/ask-dc/scripts/setup.sh
+   ```
+   이 스크립트는 다음 작업을 자동으로 처리합니다:
+   - Node.js 및 OpenCLI 설치 상태 검사
+   - ESM 모듈 해석 심(`adapter/node_modules/@jackwener/opencli`) 구성
+   - `~/.opencli/clis/dcinside` -> `~/.ai-skills/ask-dc/adapter` 심볼릭 링크 연결
+   - `opencli dcinside --help` 실행을 통한 정상 작동 검증
+
+---
+
 ## 1. 주요 갤러리 맵 & 식별 체계 (Gallery Map & Detection)
 
 ### 내장 갤러리 맵 (Built-in Gallery Map)

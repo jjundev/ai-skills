@@ -192,6 +192,14 @@ curl -s -A "Mozilla/5.0" "https://search.dcinside.com/combine/q/<갤러리명_�
 
 ## 4. 실행 워크플로우 & CLI 명령어
 
+> ℹ️ **공용 OpenCLI 어댑터 및 자가 치유 (Shared Adapter & Self-Healing)**:
+> - `write-dc`의 게시글 등록(`opencli dcinside write`)은 `ask-dc`와 공유하는 단일 백엔드 어댑터(`ask-dc/adapter/`)를 통해 구동됩니다.
+> - 만약 `opencli: command not found` 또는 `dcinside: subcommand not found` 오류가 발생하면, `ask-dc`에 포함된 자동 복구 스크립트를 실행하여 어댑터 링크와 환경을 복구합니다:
+>   ```bash
+>   bash ~/.ai-skills/ask-dc/scripts/setup.sh
+>   ```
+> - (OpenCLI 자체가 설치되어 있지 않다면 `npm install -g @jackwener/opencli`를 먼저 실행합니다.)
+
 ### Step 1: 작성 요청 분석 및 초안 생성
 사용자의 요구사항(갤러리, 작성 목적, 톤앤매너)을 파악하여 3대 템플릿 중 하나를 선택해 맞춤형 초안을 구성합니다. **제목은 반드시 공백 포함 40자 이내(권장: 25~35자)로 사전 검증**합니다.
 
