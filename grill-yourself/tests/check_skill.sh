@@ -26,6 +26,15 @@ for h in "## Intent" "## Behavior when done" "## Not in this round" "## Approach
   grep -qF "$h" "$f" || say "missing template heading: $h"
 done
 
+# Template headings must appear in this order
+prev=0
+for h in "## Intent" "## Behavior when done" "## Not in this round" "## Approaches" "## Implementation spec" "## Decisions" "### Confident" "### Needs you"; do
+  ln=$(grep -n -F "$h" "$f" | head -1 | cut -d: -f1)
+  ln=${ln:-0}
+  [ "$ln" -gt "$prev" ] || say "template headings out of order at: $h"
+  prev="$ln"
+done
+
 # Kept-by-name features
 grep -qF '#<n>=<value>' "$f"                          || say "override syntax #<n>=<value> missing"
 grep -qF '[confirmed]' "$f"                           || say "[confirmed] marker missing"

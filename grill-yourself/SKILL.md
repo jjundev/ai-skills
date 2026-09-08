@@ -29,8 +29,8 @@ implementation starts only when the user says so, in a later turn.
    (new subsystem, new interfaces, or nothing existing to change). When in doubt,
    architectural.
 3. **Pick an approach** (architectural only). Lay out 2–3 materially different
-   approaches in a table, choose one with a one-line reason. This is decision #0.
-   Bounded work skips this section.
+   approaches in a table, choose one with a one-line reason. This is decision #0
+   (value = the option letter). Bounded work skips this section.
 4. **Resolve decisions in dependency order.** Take the unresolved decision whose
    reversal would change the most others, answer it with your recommendation and a
    one-line rationale, then its dependents. Prefer reading code over reasoning; cite
@@ -44,7 +44,7 @@ implementation starts only when the user says so, in a later turn.
 6. **Emit the design** in the format below, then run the Needs-you round.
 
 ## Output format
-Match the language of the conversation, headings included.
+Match the language of the conversation, headings and labels included.
 
 ```
 # <Title>
@@ -60,9 +60,9 @@ Classification: bounded | architectural — <one line why>
 - <deliberately excluded item> — <one line why>
 
 ## Approaches   (architectural only)
-| # | Approach | Pro | Con | Chosen |
+| Option | Approach | Pro | Con | Chosen |
 |---|---|---|---|---|
-| 0 | ... | ... | ... | ✔ / — |
+| A | ... | ... | ... | ✔ / — |
 
 ## Implementation spec
 <components, files to touch, interfaces, data flow, error handling, how to test —
@@ -85,15 +85,13 @@ If the Needs-you bucket has rows, immediately send ONE message that asks about a
 them. Each question names a concrete choice or value (never yes/no) and states the
 assumed value as the recommended answer.
 
-When the user responds:
-- If they address an item individually with a specific chosen value, mark that row
-  **[confirmed]** and restate its final value; if it differs from the assumption,
-  re-derive dependent decisions and re-emit only the sections that changed.
-- If they give a blanket accept instead of addressing items one by one — "go ahead",
-  "use your recommendations", "proceed as suggested", a new topic — accept every open
-  row at its assumed value and mark ALL of them **[confirmed by default]**, even if
-  their wording sounds like a confirmation.
-- Then stop. Implementation is the user's call, in the next turn.
+When the user responds, judge each row, not the message:
+- A row given a specific value → **[confirmed]**; restate it, and if it differs from
+  the assumption re-derive dependents and re-emit only the sections that changed.
+- Every other open row — the user accepted the recommendations, changed topic, or
+  simply did not mention it → its assumed value, marked **[confirmed by default]**.
+  Never ask a second round.
+- Then stop.
 
 ## Overrides
 `#<n>=<value>` arguments lock those decisions and re-derive everything else around
