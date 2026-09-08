@@ -8,6 +8,17 @@
 # upstream disappear here too. Removing a name from a list makes future
 # syncs leave that directory alone; it does not delete it.
 #
+# Both upstreams are cloned before anything in the local tree is touched,
+# so a clone failure exits non-zero without deleting or overwriting any
+# local files. Each upstream that actually changes something gets its own
+# commit (only that upstream's synced directories are staged), with the
+# upstream's exact tag (when its HEAD is exactly tagged) and short SHA in
+# the subject, so a later `git log --grep=<label>` can recover the synced
+# version:
+#   chore: sync <label> <tag> (<sha7>)   when the clone's HEAD is exactly tagged
+#   chore: sync <label> (<sha7>)         otherwise
+# Missing-upstream WARNs are summarized in a final "⚠ N ..." line.
+#
 # Env overrides (mainly for tests):
 #   SUPERPOWERS_REPO / CAVEMAN_REPO  git URLs to clone instead of GitHub
 #   NO_COMMIT=1                      copy files but skip the git commit
@@ -53,45 +64,118 @@ CAVEMAN_SKILLS=(
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-SYNCED=()
+WARN_COUNT=0
 
-sync_skills() {
-  local label="$1" repo="$2"
-  shift 2
-  local clone="$TMP_DIR/$label"
+print_warn_summary() {
+  if [ "$WARN_COUNT" -gt 0 ]; then
+    echo "⚠ $WARN_COUNT allowlisted skill(s) missing upstream - see WARN lines above" >&2
+  fi
+}
+
+# --- Clone both upstreams first. Nothing in the tree is touched until both
+# clones have succeeded, so a clone failure leaves the local checkout alone.
+echo "=== Cloning superpowers ==="
+git clone --quiet --depth 1 "$SUPERPOWERS_REPO" "$TMP_DIR/superpowers"
+echo "=== Cloning caveman ==="
+git clone --quiet --depth 1 "$CAVEMAN_REPO" "$TMP_DIR/caveman"
+
+SP_CLONE="$TMP_DIR/superpowers"
+CM_CLONE="$TMP_DIR/caveman"
+
+# Capture provenance (tag/sha) right after cloning, before the temp dir
+# that holds these clones could be cleaned up.
+SP_TAG="$(git -C "$SP_CLONE" describe --tags --exact-match 2>/dev/null || true)"
+SP_SHA7="$(git -C "$SP_CLONE" rev-parse --short=7 HEAD)"
+CM_TAG="$(git -C "$CM_CLONE" describe --tags --exact-match 2>/dev/null || true)"
+CM_SHA7="$(git -C "$CM_CLONE" rev-parse --short=7 HEAD)"
+
+SP_SYNCED=()
+CM_SYNCED=()
+
+# Copies allowlisted names from $2/skills/<name> into $SKILLS_DIR. Appends
+# each synced name into SP_SYNCED or CM_SYNCED depending on $3 ("SP"/"CM") —
+# bash 3.2 has no namerefs, so the target array is picked by that tag
+# instead of being passed by reference.
+copy_skills() {
+  local label="$1" clone="$2" which="$3"
+  shift 3
   echo "=== Syncing $label ==="
-  git clone --quiet --depth 1 "$repo" "$clone"
   local name
   for name in "$@"; do
     if [ ! -d "$clone/skills/$name" ]; then
       echo "WARN: $label upstream has no skills/$name (renamed or removed?) - skipping" >&2
+      WARN_COUNT=$((WARN_COUNT + 1))
       continue
     fi
     rm -rf "${SKILLS_DIR:?}/$name"
     cp -R "$clone/skills/$name" "$SKILLS_DIR/$name"
-    SYNCED+=("$name")
+    if [ "$which" = "SP" ]; then
+      SP_SYNCED+=("$name")
+    else
+      CM_SYNCED+=("$name")
+    fi
   done
 }
 
-sync_skills superpowers "$SUPERPOWERS_REPO" "${SUPERPOWERS_SKILLS[@]}"
-sync_skills caveman "$CAVEMAN_REPO" "${CAVEMAN_SKILLS[@]}"
+copy_skills superpowers "$SP_CLONE" SP "${SUPERPOWERS_SKILLS[@]}"
+copy_skills caveman "$CM_CLONE" CM "${CAVEMAN_SKILLS[@]}"
 
-if [ "${#SYNCED[@]}" -eq 0 ]; then
+# Guard against expanding an empty array below (bash 3.2 + set -u). This
+# must run before any "${SP_SYNCED[@]}"/"${CM_SYNCED[@]}" expansion.
+if [ "${#SP_SYNCED[@]}" -eq 0 ] && [ "${#CM_SYNCED[@]}" -eq 0 ]; then
   echo "Nothing synced (every allowlisted skill was missing upstream)." >&2
+  print_warn_summary
   exit 1
 fi
 
 if [ "$NO_COMMIT" = "1" ]; then
   echo "NO_COMMIT=1: files updated, skipping git commit."
+  print_warn_summary
   exit 0
 fi
 
-echo "=== Committing changes ==="
 cd "$SKILLS_DIR"
-git add -A -- "${SYNCED[@]}"
-if git diff --cached --quiet; then
+
+COMMITTED=0
+
+# Stages and commits only the given upstream's synced directories. Skips
+# committing (but not staging-check) when nothing actually changed.
+commit_upstream() {
+  local label="$1" tag="$2" sha7="$3" which="$4"
+  local count
+  if [ "$which" = "SP" ]; then
+    count=${#SP_SYNCED[@]}
+  else
+    count=${#CM_SYNCED[@]}
+  fi
+  if [ "$count" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$which" = "SP" ]; then
+    git add -A -- "${SP_SYNCED[@]}"
+  else
+    git add -A -- "${CM_SYNCED[@]}"
+  fi
+  if git diff --cached --quiet; then
+    return 0
+  fi
+  local subject
+  if [ -n "$tag" ]; then
+    subject="chore: sync $label $tag ($sha7)"
+  else
+    subject="chore: sync $label ($sha7)"
+  fi
+  git commit -q -m "$subject"
+  echo "✅ Committed $label: $subject"
+  COMMITTED=1
+}
+
+echo "=== Committing changes ==="
+commit_upstream superpowers "$SP_TAG" "$SP_SHA7" SP
+commit_upstream caveman "$CM_TAG" "$CM_SHA7" CM
+
+if [ "$COMMITTED" -eq 0 ]; then
   echo "✨ All skills are already up-to-date."
-else
-  git commit -q -m "chore: auto-sync upstream skills on $(date +'%Y-%m-%d %H:%M:%S')"
-  echo "✅ Skills updated and committed to Git."
 fi
+
+print_warn_summary
