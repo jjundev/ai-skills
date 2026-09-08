@@ -7,16 +7,13 @@ Use this template when dispatching a plan document reviewer subagent.
 **Dispatch after:** The complete plan is written.
 
 ```
-Use `collaboration.spawn_agent` with:
-  task_name: "review_plan_document"
+Subagent (general-purpose):
+  description: "Review plan document"
   prompt: |
     You are a plan document reviewer. Verify this plan is complete and ready for implementation.
-    Work read-only: inspect files and run only non-mutating commands. Do NOT invoke
-    another skill or spawn subagents.
 
     **Plan to review:** [PLAN_FILE_PATH]
     **Spec for reference:** [SPEC_FILE_PATH]
-    **Global Constraints (binding):** [GLOBAL_CONSTRAINTS]
 
     ## What to Check
 

@@ -13,9 +13,9 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Context:** If working in an isolated worktree, it should have been created via the `using-git-worktrees` skill at execution time.
+**Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
 
-**Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
 
 ## Scope Check
@@ -32,34 +32,6 @@ Before defining tasks, map out which files will be created or modified and what 
 - In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
 
 This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
-
-## Decision Checkpoint
-
-Once the File Structure is mapped, pause and scan for decisions that (a) the
-spec and the codebase cannot settle and (b) would change the file structure or
-task decomposition if reversed. These are execution-level forks — a library
-choice with real trade-offs, a schema or data model the spec left open, an
-ambiguous scope boundary. **Cosmetic defaults and anything resolvable by reading
-the code are not checkpoint decisions — decide those yourself and move on.**
-
-If — and only if — such decisions exist, ask the user directly before writing tasks:
-
-- Convert each decision into a concrete, answerable question. Never yes/no —
-  force a specific choice or a concrete value. (The user can always pick "Other"
-  to type their own answer.)
-- Lead with your recommended option: place it first in the options list and
-  append `(Recommended)` to its label, chosen from codebase facts and sound
-  defaults.
-- Ask one concise question at a time unless the available interaction surface explicitly
-  supports a safe multi-question form. If more decisions remain, continue sequentially.
-- After the answers land, fold each choice into the File Structure and the tasks
-  that follow. If an answer diverges from your recommendation, propagate the
-  change to every decision that depended on it.
-
-**Default to zero questions.** A well-settled spec should leave nothing to ask —
-the design was resolved during brainstorming/grilling, and this checkpoint only
-catches genuine execution forks the spec never covered. Do not manufacture
-questions; if nothing qualifies, proceed straight to task decomposition.
 
 ## Task Right-Sizing
 
@@ -86,13 +58,16 @@ independently testable deliverable.
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
+
+**Spec:** [path to the spec/design doc this plan implements — the plan
+argues from the spec, so the spec travels with it; executors read both]
 
 ## Global Constraints
 
@@ -163,12 +138,6 @@ Every step must contain the actual content an engineer needs. These are **plan f
 - Steps that describe what to do without showing how (code blocks required for code steps)
 - References to types, functions, or methods not defined in any task
 
-## Remember
-- Exact file paths always
-- Complete code in every step — if a step changes code, show the code
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
-
 ## Self-Review
 
 After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
@@ -181,45 +150,11 @@ After writing the complete plan, look at the spec with fresh eyes and check the 
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 
-## Automatic Plan Review
-
-After Self-Review and before the Execution Handoff, review the plan with a fresh
-subagent — a light automatic gate that catches plan defects before any code is written.
-
-**Skip this step** only when the plan has exactly one task (a single-task plan isn't
-worth a review round-trip), or when the platform has no subagent capability (note the
-skip in the handoff).
-
-**Dispatch ONE reviewer subagent** using this skill's `plan-document-reviewer-prompt.md`:
-- **Read-only + no delegation:** instruct the reviewer to inspect files and run only
-  non-mutating commands; do not invoke another skill or spawn subagents.
-- **Inputs (as file paths / text, never the pasted plan body):** the saved plan file path,
-  the spec/design path if one exists, and the plan's Global Constraints block.
-
-The reviewer returns the template's verdict: **Approved** | **Issues Found** (blocking)
-plus **Recommendations** (advisory).
-
-**Act on the verdict.** The re-review is gated on blocking Issues — advisory
-Recommendations alone never trigger another reviewer pass:
-- **Approved, no recommendations** → proceed to Execution Handoff.
-- **No blocking Issues, advisory Recommendations only** → apply the Recommendations inline,
-  then proceed to Execution Handoff. **Do NOT re-dispatch the reviewer** — advisory fixes
-  don't earn a fresh review round.
-- **Blocking Issues present** → revise the plan inline to close BOTH the blocking Issues AND
-  the advisory Recommendations, then **re-dispatch the reviewer exactly once** (bounded —
-  never loop more than one re-review).
-- **Disclose the revision:** in the Execution Handoff message, add one line listing what was
-  auto-applied (e.g. "Auto-review closed 2 issues + 3 recommendations: …") so changes are
-  visible, not silent.
-- If **blocking Issues remain** after the single re-review, do NOT proceed silently — surface
-  them in the Execution Handoff (which already asks the user to choose an execution mode) as
-  "⚠️ N blocking issues unresolved after auto-review" so the user decides before executing.
-
 ## Execution Handoff
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 
@@ -228,9 +163,9 @@ After saving the plan, offer execution choice:
 **Which approach?"**
 
 **If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use subagent-driven-development
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
 - Fresh subagent per task + two-stage review
 
 **If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use executing-plans
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
 - Batch execution with checkpoints for review
