@@ -17,6 +17,10 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    - Wrapping audio with a minimal 1-fps black canvas video (`color=c=black:s=320x240:r=1`) in an `.mp4` container allows direct audio listening with zero visual overhead and zero external API fees.
 3. **10-Minute Segmentation for Long Media**:
    - For audio longer than 10 minutes, slice into 10-minute (600s) chunks to prevent context truncation and enable **Parallel Subagent** execution.
+4. **Unified Single-File Output & Clean Workspace**:
+   - Both short (<= 10 min) and long (> 10 min) audio default to producing a single `.md` file (`<NAME>.md`).
+   - Intermediate chunk files (`_part*.mp3`, `_part*.md`, `*_temp.mp4`) are automatically cleaned up upon successful merge.
+   - Retain intermediate segment files with `--keep-parts` when explicitly requested by user (e.g., "중간 파일도 남겨줘", "파트별 파일 보존").
 
 ---
 
@@ -70,15 +74,19 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
      4. Save directly to `<OUTPUT_DIR>/<NAME>_part01.md` using `write_to_file`.
      ```
 
-4. **Merge Master Transcript (Progressive Disclosure)**:
-   ```bash
-   python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>"
-   ```
+4. **Merge Master Transcript & Auto-Cleanup**:
+   - Default (Single unified `<NAME>.md` output, cleans up chunk files):
+     ```bash
+     python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>"
+     ```
+   - If the user explicitly asks to keep intermediate part files (e.g. "중간 파일도 남겨줘", "파트별 파일 보존"):
+     ```bash
+     python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --keep-parts
+     ```
 
-5. **Cleanup**:
-   ```bash
-   rm -f "<OUTPUT_DIR>"/*_temp.mp4
-   ```
+5. **Cleanup Verification**:
+   - By default, `merge_transcripts.py` automatically deletes intermediate part files (`_part*.md`, `_part*.mp3`, `*_temp.mp4`) once the merged file is verified non-empty.
+   - Run a quick check to ensure only the final `<NAME>.md` (and original source) remains, unless `--keep-parts` was specified.
 
 ---
 
@@ -99,5 +107,5 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 - [ ] Audio preprocessed with 1-fps black MP4 wrapper.
 - [ ] Verbatim transcription from 00:00 to finish without omission.
 - [ ] Formatted strictly with `MM:SS\n발화내용\n\n`.
-- [ ] Saved to `.md` (and merged to `<NAME>_full.md` via script if multi-part).
-- [ ] All temporary `*_temp*.mp4` files removed.
+- [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) for both short and long audio.
+- [ ] Intermediate chunk files cleaned up by default (or preserved only if `--keep-parts` was requested).
