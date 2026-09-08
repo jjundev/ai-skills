@@ -85,12 +85,14 @@ If the Needs-you bucket has rows, immediately send ONE message that asks about a
 them. Each question names a concrete choice or value (never yes/no) and states the
 assumed value as the recommended answer.
 
-When the user answers:
-- Mark each resolved row **[confirmed]** and restate its final value.
-- If an answer differs from the assumption, re-derive dependent decisions and re-emit
-  only the sections that changed.
-- If the user moves on without answering ("go ahead", a new topic), accept every open
-  row at its assumed value and mark it **[confirmed by default]**.
+When the user responds:
+- If they address an item individually with a specific chosen value, mark that row
+  **[confirmed]** and restate its final value; if it differs from the assumption,
+  re-derive dependent decisions and re-emit only the sections that changed.
+- If they give a blanket accept instead of addressing items one by one — "go ahead",
+  "use your recommendations", "proceed as suggested", a new topic — accept every open
+  row at its assumed value and mark ALL of them **[confirmed by default]**, even if
+  their wording sounds like a confirmation.
 - Then stop. Implementation is the user's call, in the next turn.
 
 ## Overrides
