@@ -1,0 +1,35 @@
+{
+  "general-gallery-list-ui": {
+    "url": "https://gall.dcinside.com/board/lists",
+    "method": "GET",
+    "params": {
+      "required": ["id"],
+      "optional": ["page"]
+    },
+    "response": "Rendered HTML table .gall_list tbody tr.ub-content",
+    "verified_at": "2026-08-15",
+    "notes": "UI strategy only; no internal API replay. General galleries only."
+  },
+  "general-gallery-post-ui": {
+    "url": "https://gall.dcinside.com/board/view/",
+    "method": "GET",
+    "params": {
+      "required": ["id", "no"],
+      "optional": []
+    },
+    "response": "Rendered HTML .gallview_head, .writing_view_box .write_div, and .comment_box",
+    "verified_at": "2026-08-15",
+    "notes": "Comments and replies are read only if already rendered in the page UI."
+  },
+  "general-gallery-post-write": {
+    "url": "https://gall.dcinside.com/board/write/",
+    "method": "POST",
+    "params": {
+      "required": ["id", "title", "content"],
+      "optional": ["name", "password", "head", "mgallery", "no-submit", "wait-timeout"]
+    },
+    "response": "Redirect to https://gall.dcinside.com/board/view/?id=...&no=...",
+    "verified_at": "2026-09-07",
+    "notes": "UI strategy with SmartEditor iframe/textarea injection, alert suppression, and CAPTCHA handling."
+  }
+}
