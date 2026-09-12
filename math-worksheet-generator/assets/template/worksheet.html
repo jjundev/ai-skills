@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>수학 II 문제지</title>
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
+   Put this @layer first; product CSS outside the layer always wins. */
+@layer od-layout {
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+  /* containers */
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+  /* stacked information: each piece is its own line — never sibling inline spans */
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+
+  /* media keeps its intrinsic ratio by default; never a distorted or cropped
+     cover by accident. height:auto lets the ratio win over an <img height="…">
+     attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+     AND add .od-media-cover together (per the core rule, only where a crop is
+     deliberate — tile thumbs, decorative fills — never on full-frame content). */
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+
+  /* data text only — authored copy is rewritten to its budget instead */
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }   /* block-level reservation for a shared baseline */
+  .od-nowrap  { white-space: nowrap; }           /* 数字+单位 · 价格+起 · 日期+星期 */
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; } /* CJK labels break at spaces / <wbr> first */
+
+  /* screen skeleton (optional): bars take their own space, the middle scrolls — no padding guessed for chrome */
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+  /* horizontal rail: the next item peeks at the edge; trailing room survives overflow */
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+/* /OD-LAYOUT-PRIMITIVES v1 */
+</style>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="ws-toolbar" aria-label="문제지 탐색 툴바">
+  <div class="ws-toolbar__inner">
+    <div class="ws-toolbar__group">
+      <span class="ws-toolbar__label">단원 선택:</span>
+      <a href="worksheet.html" class="ws-toolbar__btn" id="btn-sample">샘플</a>
+      <a href="worksheet.html?part=1" class="ws-toolbar__btn" id="btn-part1">Part 1 (함수의 극한)</a>
+      <a href="worksheet.html?part=2" class="ws-toolbar__btn" id="btn-part2">Part 2 (미분계수)</a>
+    </div>
+    <div class="ws-toolbar__sep" aria-hidden="true"></div>
+    <div class="ws-toolbar__group">
+      <span class="ws-toolbar__label">모드:</span>
+      <a href="worksheet.html" class="ws-toolbar__btn" id="btn-mode-problem">📄 문제지</a>
+      <a href="worksheet.html?mode=solution" class="ws-toolbar__btn" id="btn-mode-solution">📝 해설지</a>
+    </div>
+    <div class="ws-toolbar__sep" aria-hidden="true"></div>
+    <div class="ws-toolbar__group">
+      <label class="ws-toolbar__toggle" for="toggle-answers">
+        <input type="checkbox" id="toggle-answers">
+        <span>정답표 토글 (&amp;answers=1)</span>
+      </label>
+    </div>
+    <div class="ws-toolbar__sep" aria-hidden="true"></div>
+    <div class="ws-toolbar__group">
+      <button type="button" class="ws-toolbar__btn ws-toolbar__btn--primary" id="btn-print" title="인쇄 및 PDF 저장">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        <span>인쇄 / PDF 저장 (Cmd+P)</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="ws-doc" id="worksheet" aria-label="수학 문제지"></main>
+
+<noscript>
+  <div class="ws-empty">
+    <p class="ws-empty__title">자바스크립트가 꺼져 있습니다</p>
+    <p class="ws-empty__text">문제지는 <code>data/</code> 폴더의 자바스크립트 데이터를 읽어 조판합니다. 브라우저에서 자바스크립트를 켠 뒤 다시 열어 주세요.</p>
+  </div>
+</noscript>
+
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/contrib/auto-render.min.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var part = (params.get('part') || '').toLowerCase();
+  var scriptSrc = '../data/sample_problems.js';
+  if (part === '1' || part === 'part1') {
+    scriptSrc = '../data/problems_part1.js';
+  } else if (part === '2' || part === 'part2') {
+    scriptSrc = '../data/problems_part2.js';
+  }
+  document.write('<script src="' + scriptSrc + '"><\/script>');
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  var PER_SHEET = 4;                    /* 4문제 = A4 한 장 */
+  var SHEET_PX = 210 / 25.4 * 96;       /* 210mm → CSS px, 화면 맞춤용 */
+  var TEX_ERROR_COLOR = '#18181b';
+
+  var MATH_DELIMITERS = [
+    { left: '$$', right: '$$', display: true },
+    { left: '\\(', right: '\\)', display: false },
+    { left: '$', right: '$', display: false }
+  ];
+
+  /* 자가진단 기호: ○ 맞음 · △ 질문/애매함 · ✕ 틀림 */
+  var CHECKS = [
+    { label: '맞음', shape: '<circle cx="8" cy="8" r="6"/>' },
+    { label: '질문·애매함', shape: '<path d="M8 2.4 14 13.2H2Z"/>' },
+    { label: '틀림', shape: '<path d="M3.2 3.2 12.8 12.8M12.8 3.2 3.2 12.8"/>' }
+  ];
+
+  var params = new URLSearchParams(window.location.search);
+  var part = (params.get('part') || '').toLowerCase();
+  var isSolution = params.get('mode') === 'solution' || params.get('solution') === '1';
+  var hasAnswers = params.get('answers') === '1' || params.get('answers') === 'true';
+
+  var root = document.getElementById('worksheet');
+  var data = window.WORKSHEET_DATA;
+
+  var btnSample = document.getElementById('btn-sample');
+  var btnPart1 = document.getElementById('btn-part1');
+  var btnPart2 = document.getElementById('btn-part2');
+  var btnModeProblem = document.getElementById('btn-mode-problem');
+  var btnModeSolution = document.getElementById('btn-mode-solution');
+  var toggleAnswers = document.getElementById('toggle-answers');
+  var btnPrint = document.getElementById('btn-print');
+
+  if (part === '1' || part === 'part1') {
+    if (btnPart1) btnPart1.classList.add('is-active');
+  } else if (part === '2' || part === 'part2') {
+    if (btnPart2) btnPart2.classList.add('is-active');
+  } else {
+    if (btnSample) btnSample.classList.add('is-active');
+  }
+
+  if (isSolution) {
+    if (btnModeSolution) btnModeSolution.classList.add('is-active');
+  } else {
+    if (btnModeProblem) btnModeProblem.classList.add('is-active');
+  }
+
+  function getCanonicalPart() {
+    if (part === '1' || part === 'part1') return '1';
+    if (part === '2' || part === 'part2') return '2';
+    return '';
+  }
+
+  function makeUrl(targetPart, targetSolution, targetAnswers) {
+    var p = new URLSearchParams();
+    if (targetPart) p.set('part', targetPart);
+    if (targetSolution) p.set('mode', 'solution');
+    if (targetAnswers) p.set('answers', '1');
+    var s = p.toString();
+    return 'worksheet.html' + (s ? ('?' + s) : '');
+  }
+
+  function updateToolbarLinks() {
+    var cPart = getCanonicalPart();
+    if (btnSample) btnSample.href = makeUrl('', isSolution, hasAnswers);
+    if (btnPart1) btnPart1.href = makeUrl('1', isSolution, hasAnswers);
+    if (btnPart2) btnPart2.href = makeUrl('2', isSolution, hasAnswers);
+    if (btnModeProblem) btnModeProblem.href = makeUrl(cPart, false, hasAnswers);
+    if (btnModeSolution) btnModeSolution.href = makeUrl(cPart, true, hasAnswers);
+  }
+  updateToolbarLinks();
+
+  function handleModeClick(e, targetSolution) {
+    e.preventDefault();
+    if (isSolution === targetSolution) return;
+    isSolution = targetSolution;
+    var p = new URLSearchParams(window.location.search);
+    if (isSolution) {
+      p.set('mode', 'solution');
+      p.delete('solution');
+    } else {
+      p.delete('mode');
+      p.delete('solution');
+    }
+    var searchStr = p.toString();
+    var newUrl = window.location.pathname + (searchStr ? ('?' + searchStr) : '');
+    window.history.replaceState(null, '', newUrl);
+    if (btnModeProblem) btnModeProblem.classList.toggle('is-active', !isSolution);
+    if (btnModeSolution) btnModeSolution.classList.toggle('is-active', isSolution);
+    updateToolbarLinks();
+    root.textContent = '';
+    render();
+  }
+
+  if (btnModeProblem) {
+    btnModeProblem.addEventListener('click', function (e) {
+      handleModeClick(e, false);
+    });
+  }
+  if (btnModeSolution) {
+    btnModeSolution.addEventListener('click', function (e) {
+      handleModeClick(e, true);
+    });
+  }
+
+  if (toggleAnswers) {
+    toggleAnswers.checked = hasAnswers;
+    toggleAnswers.addEventListener('change', function () {
+      var p = new URLSearchParams(window.location.search);
+      hasAnswers = toggleAnswers.checked;
+      if (hasAnswers) {
+        p.set('answers', '1');
+      } else {
+        p.delete('answers');
+      }
+      var searchStr = p.toString();
+      var newUrl = window.location.pathname + (searchStr ? ('?' + searchStr) : '');
+      window.history.replaceState(null, '', newUrl);
+      updateToolbarLinks();
+      root.textContent = '';
+      render();
+    });
+  }
+
+  if (btnPrint) {
+    btnPrint.addEventListener('click', function () {
+      window.print();
+    });
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null && text !== '') node.textContent = String(text);
+    return node;
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function renderFormula(target, tex, displayMode) {
+    if (window.katex) {
+      try {
+        window.katex.render(tex, target, {
+          displayMode: displayMode,
+          throwOnError: false,
+          errorColor: TEX_ERROR_COLOR,
+          strict: 'ignore'
+        });
+        return;
+      } catch (err) { /* 아래 원본 LaTeX 로 대체 */ }
+    }
+    target.textContent = '';
+    target.appendChild(el('code', 'tex-fallback', tex));
+  }
+
+  function renderInlineMath(node) {
+    if (typeof window.renderMathInElement !== 'function') return;
+    window.renderMathInElement(node, {
+      delimiters: MATH_DELIMITERS,
+      throwOnError: false,
+      errorColor: TEX_ERROR_COLOR,
+      strict: 'ignore'
+    });
+  }
+
+  /* "수학 II - 함수의 극한 실전 대비" → 과목 칩 + 제목 */
+  function splitTitle(title) {
+    var m = /^(.+?)\s+[-–—]\s+(.+)$/.exec(title || '');
+    return m ? { subject: m[1], rest: m[2] } : { subject: '', rest: title || '' };
+  }
+
+  function sep() {
+    var s = el('span', 'ws-sep od-fixed');
+    s.setAttribute('aria-hidden', 'true');
+    return s;
+  }
+
+  function buildHeader(meta) {
+    var header = el('header', 'ws-header');
+
+    var titleBox = el('div', 'ws-header__title');
+    var line = el('div', 'ws-header__line od-row');
+    var t = splitTitle(meta.title);
+    if (isSolution) {
+      var subjectText = (t.subject || '수학 II') + ' · 해설';
+      line.appendChild(el('span', 'ws-subject ws-subject--solution od-fixed', subjectText));
+    } else if (t.subject) {
+      line.appendChild(el('span', 'ws-subject od-fixed', t.subject));
+    }
+    line.appendChild(el('p', 'ws-title od-truncate', t.rest));
+    titleBox.appendChild(line);
+    if (meta.subtitle) titleBox.appendChild(el('p', 'ws-subtitle od-truncate', meta.subtitle));
+    header.appendChild(titleBox);
+
+    var info = el('div', 'ws-header__info od-row od-fixed od-nowrap');
+    info.appendChild(el('span', 'ws-student', meta.student));
+    info.appendChild(sep());
+    info.appendChild(el('span', 'ws-date', meta.date));
+    info.appendChild(sep());
+    var confirm = el('span', 'ws-confirm od-row');
+    confirm.appendChild(el('span', '', '확인'));
+    var box = el('span', 'ws-confirm__box od-fixed');
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', '선생님 확인란');
+    confirm.appendChild(box);
+    info.appendChild(confirm);
+    header.appendChild(info);
+
+    return header;
+  }
+
+  function buildChecks() {
+    var group = el('span', 'card__check od-row');
+    group.setAttribute('role', 'img');
+    group.setAttribute('aria-label', '자가진단: ○ 맞음, △ 질문·애매함, ✕ 틀림');
+    group.innerHTML = CHECKS.map(function (c) {
+      return '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><title>' +
+        c.label + '</title>' + c.shape + '</svg>';
+    }).join('');
+    return group;
+  }
+
+  function renderStepContent(target, text) {
+    if (!text) return;
+    var regex = /(\$\$[\s\S]*?\$\$|\*\*[\s\S]*?\*\*|\$[^\$]+?\$|\\{2,})/g;
+    var parts = text.split(regex);
+    parts.forEach(function (part) {
+      if (!part) return;
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        var strong = document.createElement('strong');
+        strong.textContent = part.slice(2, -2);
+        renderInlineMath(strong);
+        target.appendChild(strong);
+      } else if (part === '\\\\' || /^\\{2,}$/.test(part)) {
+        target.appendChild(document.createElement('br'));
+      } else {
+        var textNode = document.createTextNode(part);
+        target.appendChild(textNode);
+      }
+    });
+    renderInlineMath(target);
+  }
+
+  function buildSolutionBox(solution) {
+    var box = el('div', 'card__solution-box');
+    var steps = solution && Array.isArray(solution.steps) ? solution.steps : [];
+    steps.forEach(function (st) {
+      var stepEl = el('div', 'sol-step');
+      if (st.label) {
+        var badge = el('span', 'sol-step__badge', st.label);
+        renderInlineMath(badge);
+        stepEl.appendChild(badge);
+      }
+      if (st.content) {
+        var contentEl = el('span', 'sol-step__content');
+        renderStepContent(contentEl, st.content);
+        stepEl.appendChild(contentEl);
+      }
+      box.appendChild(stepEl);
+    });
+    return box;
+  }
+
+  function buildCard(p, fallbackNo) {
+    var no = pad2(p.id != null ? p.id : fallbackNo);
+    var card = el('article', 'card' + (isSolution ? ' card--solution' : ''));
+    card.setAttribute('aria-label', no + '번 문제');
+
+    /* 1. 메타 헤더 */
+    var meta = el('div', 'card__meta od-row');
+    meta.appendChild(el('span', 'card__no', no));
+    if (p.source) meta.appendChild(el('span', 'card__source od-truncate', p.source));
+    if (p.tag) meta.appendChild(el('span', 'card__tag', p.tag));
+    meta.appendChild(buildChecks());
+    card.appendChild(meta);
+
+    /* 2. 문제 제시부 */
+    var body = el('div', 'card__body');
+    if (p.question) {
+      var q = el('p', 'card__question', p.question);
+      renderInlineMath(q);
+      body.appendChild(q);
+    }
+    if (p.formula) {
+      var f = el('div', 'card__formula');
+      renderFormula(f, p.formula, true);
+      body.appendChild(f);
+    }
+    var subs = Array.isArray(p.subQuestions) ? p.subQuestions : [];
+    if (subs.length) {
+      /* 소문항 수식이 길거나 분수/근호가 포함되어 2단 가로폭(~38mm)을 초과할 경우 세로 1단 스택으로 전환 */
+      var isStack = p.subLayout === 'stack' || subs.some(function (s) {
+        var f = s.formula || '';
+        return f.length > 20 || f.indexOf('\\frac') !== -1 || f.indexOf('\\sqrt') !== -1 || (f.indexOf('^') !== -1 && f.length > 14) || f.indexOf('+') !== -1 && f.length > 14;
+      });
+      var list = el('ol', 'card__subs' + (isStack ? ' card__subs--stack' : ''));
+      subs.forEach(function (s, i) {
+        var item = el('li', 'sub');
+        item.appendChild(el('span', 'sub__no', '(' + (s.no != null ? s.no : i + 1) + ')'));
+        var sf = el('div', 'sub__formula');
+        renderFormula(sf, s.formula || '', true);
+        item.appendChild(sf);
+        list.appendChild(item);
+      });
+      body.appendChild(list);
+    }
+    card.appendChild(body);
+
+    /* 3. 풀이 공간 */
+    var work = el('div', 'card__work');
+    work.setAttribute('role', 'img');
+    work.setAttribute('aria-label', isSolution ? '단계별 해설 및 풀이' : '풀이 공간 (5mm 도트 모눈)');
+    if (isSolution && p.solution && Array.isArray(p.solution.steps) && p.solution.steps.length > 0) {
+      work.appendChild(buildSolutionBox(p.solution));
+    }
+    card.appendChild(work);
+
+    /* 4. 액션바: 팁 + 정답 기입란 */
+    var actions = el('div', 'card__actions od-row');
+    var tip = el('p', 'card__tip');
+    if (p.tip) {
+      tip.appendChild(el('span', 'card__tip-label', '💡 Tip:'));
+      tip.appendChild(document.createTextNode(' ' + p.tip));
+      renderInlineMath(tip);
+    }
+    actions.appendChild(tip);
+
+    var answerClass = 'card__answer' + (isSolution ? ' card__answer--filled od-row' : ' od-row od-fixed od-nowrap');
+    var answer = el('div', answerClass);
+    answer.appendChild(el('span', '', '정답:'));
+    if (isSolution) {
+      var answerVal = el('span', 'card__answer-val');
+      renderAnswerCell(answerVal, p.answer || '-');
+      answer.appendChild(answerVal);
+    } else {
+      var answerBox = el('span', 'card__answer-box od-fixed');
+      answerBox.setAttribute('role', 'img');
+      answerBox.setAttribute('aria-label', '정답 기입란');
+      answer.appendChild(answerBox);
+    }
+    actions.appendChild(answer);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  function buildSheet(meta, items, index, total) {
+    var sheet = el('section', 'page-sheet');
+    sheet.setAttribute('aria-label', (index + 1) + ' / ' + total + ' 쪽');
+
+    sheet.appendChild(buildHeader(meta));
+
+    var grid = el('div', 'ws-grid');
+    items.forEach(function (p, i) {
+      grid.appendChild(buildCard(p, index * PER_SHEET + i + 1));
+    });
+    sheet.appendChild(grid);
+
+    var footer = el('footer', 'ws-footer');
+    footer.appendChild(el('p', 'ws-cheer od-truncate', meta.cheer || ''));
+    footer.appendChild(el('p', 'ws-folio od-nowrap', '- ' + (index + 1) + ' / ' + total + ' -'));
+    sheet.appendChild(footer);
+
+    return sheet;
+  }
+
+  function formatAnswerText(text) {
+    if (!text) return '';
+    var s = String(text);
+    s = s.replace(/\\ne\b/g, '≠');
+    s = s.replace(/\\le\b/g, '≤');
+    s = s.replace(/\\ge\b/g, '≥');
+    s = s.replace(/\\infty\b/g, '∞');
+    s = s.replace(/\\Delta\s*x\b/g, 'Δx');
+    s = s.replace(/\\Delta\b/g, 'Δ');
+    return s;
+  }
+
+  function renderAnswerCell(target, text) {
+    if (!text) return;
+    var s = String(text);
+    if (s.indexOf('$') !== -1 || s.indexOf('\\(') !== -1) {
+      target.textContent = s;
+      renderInlineMath(target);
+      return;
+    }
+    if (/\\(lim|frac|sqrt|left|right|text|sum)\b/.test(s)) {
+      var converted = s.replace(/\(([^)]*\\[a-zA-Z]+[^)]*)\)/g, '($$$1$$)');
+      if (converted === s) {
+        converted = '$' + s + '$';
+      }
+      target.textContent = converted;
+      renderInlineMath(target);
+      return;
+    }
+    if (/^\\[a-zA-Z]/.test(s) && window.katex) {
+      try {
+        window.katex.render(s, target, {
+          displayMode: false,
+          throwOnError: false,
+          errorColor: TEX_ERROR_COLOR,
+          strict: 'ignore'
+        });
+        return;
+      } catch (err) {}
+    }
+    s = formatAnswerText(s);
+    target.textContent = s;
+    renderInlineMath(target);
+  }
+
+  function buildAnswerHeader(meta, count) {
+    var header = el('header', 'ws-header');
+
+    var titleBox = el('div', 'ws-header__title');
+    var line = el('div', 'ws-header__line od-row');
+    var t = splitTitle(meta.title);
+    var subjectName = t.subject || '수학 II';
+    line.appendChild(el('span', 'ws-subject od-fixed', '정답표'));
+    line.appendChild(el('p', 'ws-title od-truncate', subjectName + ' - 빠른 정답 및 채점표'));
+    titleBox.appendChild(line);
+
+    var subText = t.rest ? (t.rest + ' (총 ' + count + '문항) · 빠른 정답') : (meta.subtitle || '학교 프린트 핵심 유형 빠른 정답표');
+    titleBox.appendChild(el('p', 'ws-subtitle od-truncate', subText));
+    header.appendChild(titleBox);
+
+    var info = el('div', 'ws-header__info od-row od-fixed od-nowrap');
+    info.appendChild(el('span', 'ws-student', meta.student || ''));
+    info.appendChild(sep());
+    info.appendChild(el('span', 'ws-date', meta.date || ''));
+    info.appendChild(sep());
+    var confirm = el('span', 'ws-confirm od-row');
+    confirm.appendChild(el('span', '', '득점'));
+    var scoreBox = el('span', 'ws-confirm__box ws-confirm__box--score od-fixed');
+    scoreBox.setAttribute('role', 'img');
+    scoreBox.setAttribute('aria-label', '득점란 (100점 만점)');
+    confirm.appendChild(scoreBox);
+    info.appendChild(confirm);
+    header.appendChild(info);
+
+    return header;
+  }
+
+  function buildAnswerGrid(problems) {
+    var grid = el('div', 'ws-answers-grid');
+    var cols = 4;
+    var rowsPerCol = Math.ceil(problems.length / cols);
+
+    for (var colIdx = 0; colIdx < cols; colIdx++) {
+      var start = colIdx * rowsPerCol;
+      var end = Math.min(start + rowsPerCol, problems.length);
+      var colProblems = problems.slice(start, end);
+
+      var table = el('table', 'ws-ans-table');
+      var thead = el('thead');
+      var htr = el('tr');
+      htr.appendChild(el('th', 'ws-ans-th--no', '문항'));
+      htr.appendChild(el('th', 'ws-ans-th--ans', '빠른 정답'));
+      htr.appendChild(el('th', 'ws-ans-th--chk', '채점'));
+      thead.appendChild(htr);
+      table.appendChild(thead);
+
+      var tbody = el('tbody');
+      colProblems.forEach(function (p, idx) {
+        var tr = el('tr');
+        var tdNo = el('td', 'ws-ans-td--no');
+        var noBadge = el('span', 'ws-ans-no-badge', pad2(p.id != null ? p.id : (start + idx + 1)));
+        tdNo.appendChild(noBadge);
+        tr.appendChild(tdNo);
+
+        var tdAns = el('td', 'ws-ans-td--ans');
+        renderAnswerCell(tdAns, p.answer || '-');
+        tr.appendChild(tdAns);
+
+        var tdChk = el('td', 'ws-ans-td--chk');
+        var chkBox = el('span', 'ws-ans-check-box');
+        tdChk.appendChild(chkBox);
+        tr.appendChild(tdChk);
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      grid.appendChild(table);
+    }
+    return grid;
+  }
+
+  function buildAnswerSheet(meta, problems) {
+    var sheet = el('section', 'page-sheet ws-sheet--answers');
+    sheet.setAttribute('aria-label', '빠른 정답 및 채점표');
+
+    sheet.appendChild(buildAnswerHeader(meta, problems.length));
+
+    var body = el('div', 'ws-answers-body');
+
+    // 1. 통계 요약 바
+    var summary = el('div', 'ws-ans-summary od-row');
+    var s1 = el('div', 'ws-ans-stat od-stat');
+    s1.appendChild(el('span', 'ws-ans-stat__label', '총 문항 수'));
+    s1.appendChild(el('span', 'ws-ans-stat__val', problems.length + '문항'));
+    summary.appendChild(s1);
+
+    var s2 = el('div', 'ws-ans-stat od-stat');
+    s2.appendChild(el('span', 'ws-ans-stat__label', '맞힌 문항 (득점)'));
+    s2.appendChild(el('span', 'ws-ans-stat__val', '_______ / ' + problems.length));
+    summary.appendChild(s2);
+
+    var s3 = el('div', 'ws-ans-stat od-stat');
+    s3.appendChild(el('span', 'ws-ans-stat__label', '오답 문항 수'));
+    s3.appendChild(el('span', 'ws-ans-stat__val', '_______ 개'));
+    summary.appendChild(s3);
+
+    var s4 = el('div', 'ws-ans-stat od-stat');
+    s4.appendChild(el('span', 'ws-ans-stat__label', '성취도 진단'));
+    s4.appendChild(el('span', 'ws-ans-stat__val', '○ 1등급  ○ 2등급  ○ 보충'));
+    summary.appendChild(s4);
+
+    body.appendChild(summary);
+
+    // 2. 4열 빠른 정답 그리드
+    body.appendChild(buildAnswerGrid(problems));
+
+    // 3. 오답 분석 및 교수법 체크리스트
+    var review = el('div', 'ws-ans-review od-stack');
+
+    var reviewHeader = el('div', 'ws-ans-review__header od-row');
+    reviewHeader.appendChild(el('span', 'ws-ans-review__tag', '서영이 맞춤 3단계 알고리즘 점검 & 오답 노트'));
+    review.appendChild(reviewHeader);
+
+    var checklist = el('div', 'ws-ans-checklist');
+    var steps = [
+      { title: '1단계: 선 대입', desc: '먼저 $x=a$를 바로 대입해 계산 가능 여부를 확인했는가?' },
+      { title: '2단계: 식 변형', desc: '$\\frac{0}{0}$ 또는 $\\frac{\\infty}{\\infty}$ 꼴일 때 인수분해·유리화했는가?' },
+      { title: '3단계: 재대입', desc: '공통인수를 약분한 뒤 다시 $x=a$를 대입하여 정답을 냈는가?' }
+    ];
+    steps.forEach(function (s) {
+      var item = el('div', 'ws-ans-chk-item');
+      item.appendChild(el('span', 'ws-ans-step', s.title));
+      var desc = el('p', '', s.desc);
+      renderInlineMath(desc);
+      item.appendChild(desc);
+      checklist.appendChild(item);
+    });
+    review.appendChild(checklist);
+
+    var memo = el('div', 'ws-ans-memo');
+    memo.appendChild(el('div', 'ws-ans-memo__title', '오답 분석 및 선생님 확인 피드백란 (5mm 모눈)'));
+    memo.appendChild(el('div', 'ws-ans-memo__grid'));
+    review.appendChild(memo);
+
+    body.appendChild(review);
+    sheet.appendChild(body);
+
+    var footer = el('footer', 'ws-footer');
+    footer.appendChild(el('p', 'ws-cheer od-truncate', '정답 확인 후 틀린 문제는 반드시 개념과 풀이 과정을 재점검하세요 ✨'));
+    footer.appendChild(el('p', 'ws-folio od-nowrap', '- 빠른 정답 및 채점표 -'));
+    sheet.appendChild(footer);
+
+    return sheet;
+  }
+
+  function renderEmpty() {
+    var box = el('div', 'ws-empty');
+    box.appendChild(el('p', 'ws-empty__title', '표시할 문제가 없습니다'));
+    var text = el('p', 'ws-empty__text');
+    text.innerHTML = '<code>data/sample_problems.js</code> 파일에 <code>window.WORKSHEET_DATA</code> 가 선언되어 있는지, ' +
+      '<code>problems</code> 배열에 문제가 1개 이상 들어 있는지 확인해 주세요.';
+    box.appendChild(text);
+    root.appendChild(box);
+  }
+
+  function fitToScreen() {
+    var avail = document.documentElement.clientWidth - 32;
+    var zoom = Math.max(0.3, Math.min(1, avail / SHEET_PX));
+    document.documentElement.style.setProperty('--screen-zoom', zoom.toFixed(3));
+  }
+
+  function render() {
+    if (!data || !Array.isArray(data.problems) || data.problems.length === 0) {
+      renderEmpty();
+      return;
+    }
+
+    var meta = data.meta || {};
+    var problems = data.problems;
+    var total = Math.ceil(problems.length / PER_SHEET);
+    var frag = document.createDocumentFragment();
+
+    for (var i = 0; i < total; i++) {
+      frag.appendChild(buildSheet(meta, problems.slice(i * PER_SHEET, (i + 1) * PER_SHEET), i, total));
+    }
+
+    if (hasAnswers) {
+      frag.appendChild(buildAnswerSheet(meta, problems));
+    }
+
+    root.appendChild(frag);
+
+    if (meta.title) {
+      var suffix = '';
+      if (isSolution) {
+        suffix = ' (해설지)';
+      } else if (hasAnswers) {
+        suffix = ' (정답표 포함)';
+      }
+      document.title = meta.title + (meta.student ? ' — ' + meta.student : '') + suffix;
+    }
+  }
+
+  fitToScreen();
+  window.addEventListener('resize', fitToScreen);
+  render();
+})();
+</script>
+</body>
+</html>

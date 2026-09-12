@@ -1,0 +1,926 @@
+/* =====================================================================
+   서영이 수학 문제지 — A4 인쇄 스타일시트
+   기준 문서: WORKSHEET_DESIGN_SPEC.md 2장(페이지) · 3장(카드) · 4장(디자인)
+   치수·색상·글자 크기는 모두 :root 변수에서 한 번만 선언한다.
+   ===================================================================== */
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+  src: local("Pretendard Variable"),
+       url("vendor/pretendard/PretendardVariable.woff2") format("woff2-variations"),
+       url("vendor/pretendard/PretendardVariable.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+
+  /* 색상 — 흑백 레이저 프린터 최적화 모노크롬 */
+  --c-ink: #09090b;        /* 주요 텍스트 */
+  --c-charcoal: #18181b;   /* 강조 텍스트 · 번호 뱃지 */
+  --c-meta: #64748b;       /* 보조 메타 텍스트 */
+  --c-border: #e2e8f0;     /* 카드 외곽선 */
+  --c-dot: #cbd5e1;        /* 도트 모눈 */
+  --c-paper: #ffffff;
+
+  /* 페이지 — A4 세로, 유효 영역 190 × 275mm */
+  --page-w: 210mm;
+  --page-h: 297mm;
+  --margin-top: 12mm;
+  --margin-right: 10mm;
+  --margin-bottom: 10mm;
+  --margin-left: 10mm;
+  --header-h: 16mm;
+  --main-h: 248mm;
+  --footer-h: 7mm;
+  --band-gap: 2mm;         /* (275 − 16 − 248 − 7) ÷ 2 */
+
+  /* 문제 카드 — 2열 × 2행 */
+  --card-w: 91.5mm;
+  --card-h: 120.5mm;
+  --card-gap: 7mm;         /* 가로 190 − 91.5×2 = 7 · 세로 248 − 120.5×2 = 7 */
+  --card-radius: 6px;
+  --card-pad-y: 3mm;
+  --card-pad-x: 3.5mm;
+  --card-meta-h: 22px;
+  --card-action-h: 24px;
+
+  /* 풀이 공간 — 5mm 도트 모눈 */
+  --grid-step: 5mm;
+  --dot-r: 0.75px;
+
+  /* 타이포그래피 */
+  --font-sans: "Pretendard", "Pretendard Variable", "KoPubWorld돋움", "KoPubWorldDotum",
+               system-ui, -apple-system, "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR",
+               "Helvetica Neue", Arial, sans-serif;
+  --fs-question: 13.5px;
+  --lh-question: 1.6;
+  --fs-title: 15px;
+  --fs-student: 13px;
+  --fs-label: 11px;
+  --fs-meta: 10px;
+  --fs-footer: 9.5px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--c-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+p, ol { margin: 0; padding: 0; }
+
+/* ---------------------------------------------------------------------
+   A4 시트 — 4문제가 한 장. 여백은 시트 안쪽 패딩으로 고정해
+   브라우저 인쇄 여백 설정과 무관하게 같은 지면이 나오게 한다.
+   --------------------------------------------------------------------- */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+.page-sheet {
+  width: var(--page-w);
+  height: var(--page-h);
+  padding: var(--margin-top) var(--margin-right) var(--margin-bottom) var(--margin-left);
+  display: grid;
+  grid-template-rows: var(--header-h) var(--main-h) var(--footer-h);
+  row-gap: var(--band-gap);
+  overflow: hidden;
+  background: var(--c-paper);
+  break-after: page;
+  page-break-after: always;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------------------------------------------------------------------
+   상단 헤더 (16mm) — 과목/단원 + 이름 | 수업일 | 확인
+   --------------------------------------------------------------------- */
+.ws-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6mm;
+  padding-bottom: 2mm;
+  border-bottom: 3px double var(--c-charcoal);
+  min-width: 0;
+}
+
+.ws-header__title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ws-header__line {
+  --od-gap: 8px;
+  min-width: 0;
+}
+
+.ws-subject {
+  padding: 1px 7px;
+  border: 1.2px solid var(--c-charcoal);
+  border-radius: 4px;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--c-charcoal);
+  white-space: nowrap;
+}
+
+.ws-subject--solution {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.ws-title {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--c-ink);
+}
+
+.ws-subtitle {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--c-meta);
+}
+
+.ws-header__info {
+  --od-gap: 10px;
+  font-size: var(--fs-label);
+  color: var(--c-charcoal);
+}
+
+.ws-student {
+  font-size: var(--fs-student);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.ws-date { font-variant-numeric: tabular-nums; }
+
+.ws-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--c-dot);
+}
+
+.ws-confirm {
+  --od-gap: 6px;
+  font-weight: 600;
+}
+
+.ws-confirm__box {
+  width: 7mm;
+  height: 7mm;
+  border: 1px solid var(--c-charcoal);
+  border-radius: 2px;
+}
+
+.ws-confirm__box--score {
+  width: 14mm;
+  height: 7mm;
+  border: 1px solid var(--c-charcoal);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--c-meta);
+}
+
+/* ---------------------------------------------------------------------
+   메인 문제 영역 (248mm) — 2 × 2 그리드
+   --------------------------------------------------------------------- */
+.ws-grid {
+  display: grid;
+  grid-template-columns: repeat(2, var(--card-w));
+  grid-template-rows: repeat(2, var(--card-h));
+  gap: var(--card-gap);
+}
+
+/* ---------------------------------------------------------------------
+   문제 카드 — 메타 헤더 / 문제 제시부 / 풀이 공간 / 액션바
+   --------------------------------------------------------------------- */
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border: 1px solid var(--c-border);
+  border-radius: var(--card-radius);
+  background: var(--c-paper);
+  overflow: hidden;
+  break-inside: avoid;
+}
+
+/* 1. 메타 헤더 (22px) */
+.card__meta {
+  --od-gap: 6px;
+  flex: none;
+  height: var(--card-meta-h);
+}
+
+.card__no {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--c-charcoal);
+  color: var(--c-paper);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.card__source {
+  flex: 0 1 auto;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--c-dot);
+  border-radius: 4px;
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--c-meta);
+}
+
+.card__tag {
+  flex: none;
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  color: var(--c-charcoal);
+  white-space: nowrap;
+}
+
+.card__check {
+  --od-gap: 5px;
+  flex: none;
+  margin-left: auto;
+}
+
+.card__check svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--c-meta);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 2. 문제 제시부 (가변, 약 25~35mm) */
+.card__body {
+  flex: none;
+  padding-top: 2mm;
+  font-size: var(--fs-question);
+  line-height: var(--lh-question);
+  color: var(--c-ink);
+}
+
+.card__question {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.card__formula {
+  margin-top: 1.5mm;
+  overflow: visible;
+}
+
+.card__formula .katex-display { margin: 0; }
+
+/* 소문항 — 가로 2단 분할 (기본) */
+.card__subs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5mm 4mm;
+  margin-top: 1.5mm;
+  list-style: none;
+}
+
+/* 긴 수식이 포함된 소문항은 가로 잘림 방지를 위해 세로 1단 배치 */
+.card__subs--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+}
+
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sub__no {
+  flex: none;
+  font-weight: 600;
+  color: var(--c-charcoal);
+}
+
+.sub__formula {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: visible;
+}
+
+.sub__formula .katex-display { margin: 0; text-align: left; }
+.sub__formula .katex-display > .katex { text-align: left; }
+
+/* 3. 풀이 공간 (flex: 1, 약 60~70mm) — 5mm 도트 모눈 */
+.card__work {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 2mm;
+  background-color: var(--c-paper);
+  background-image: radial-gradient(var(--c-dot) var(--dot-r), transparent var(--dot-r));
+  background-size: var(--grid-step) var(--grid-step);
+  background-position: 0 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* 해설 모드 카드 및 풀이 공간 */
+.card--solution .card__work {
+  display: flex;
+  flex-direction: column;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.28) var(--dot-r), transparent var(--dot-r));
+  padding: 1.5mm;
+  overflow: hidden;
+}
+
+.card__solution-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 2mm 2.5mm;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 4px;
+  font-size: 9.3px;
+  line-height: 1.42;
+  color: var(--c-charcoal);
+  overflow: hidden;
+  word-break: keep-all;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.sol-step {
+  margin-bottom: 1.5mm;
+}
+
+.sol-step:last-child {
+  margin-bottom: 0;
+}
+
+.sol-step__badge {
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 3px;
+  padding: 0.5px 3.5px;
+  margin-right: 4px;
+  line-height: 1.2;
+  vertical-align: middle;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.sol-step__content {
+  display: inline;
+}
+
+.sol-step__content .katex {
+  font-size: 0.98em;
+}
+
+/* 4. 하단 액션바 (24px) — 팁 / 정답 기입란 */
+.card__actions {
+  --od-gap: 1.5mm 3mm;
+  flex: none;
+  min-height: var(--card-action-h);
+  margin-top: 1.5mm;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.card__tip {
+  flex: 1 1 36mm;
+  min-width: 32mm;
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: var(--c-charcoal);
+  word-break: keep-all;
+  overflow: visible;
+}
+
+.card__tip-label {
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.card__answer {
+  --od-gap: 5px;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  color: var(--c-ink);
+  margin-left: auto;
+}
+
+.card__answer-box {
+  width: 24mm;
+  height: 20px;
+  border: 1px dashed var(--c-meta);
+  border-radius: 3px;
+}
+
+/* 해설 모드 시 정답 기입란 강조 채움 */
+.card__answer--filled {
+  border: 1.5px solid #2563eb !important;
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  border-style: solid !important;
+  border-radius: 4px;
+  padding: 1px 6px;
+  min-height: 20px;
+  max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.card__answer--filled .card__answer-val {
+  color: #1d4ed8;
+  font-weight: 700;
+  margin-left: 4px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------
+   하단 푸터 (7mm) — 응원 문구 / 쪽 번호
+   --------------------------------------------------------------------- */
+.ws-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6mm;
+  border-top: 1px solid var(--c-border);
+  font-size: var(--fs-footer);
+  color: var(--c-meta);
+}
+
+.ws-cheer {
+  min-width: 0;
+  font-weight: 500;
+}
+
+.ws-folio {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* KaTeX 를 불러오지 못했을 때 원본 LaTeX 를 그대로 보여 준다 */
+.tex-fallback {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--c-charcoal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* 데이터가 비었을 때 */
+.ws-empty {
+  max-width: 560px;
+  margin: 64px auto;
+  padding: 32px;
+  border: 1px solid var(--c-dot);
+  border-radius: var(--card-radius);
+  background: var(--c-paper);
+  display: grid;
+  gap: 8px;
+}
+
+.ws-empty__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.ws-empty__text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--c-charcoal);
+}
+
+.ws-empty code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+/* ---------------------------------------------------------------------
+   상단 플로팅 툴바 (.ws-toolbar) — 화면 전용, 인쇄 시 숨김
+   --------------------------------------------------------------------- */
+.ws-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(24, 24, 27, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f4f4f5;
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.ws-toolbar__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ws-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-toolbar__label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.ws-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  color: #e4e4e7;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.ws-toolbar__btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.ws-toolbar__btn.is-active {
+  background: #ffffff;
+  color: #18181b;
+  border-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.ws-toolbar__btn--primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.ws-toolbar__btn--primary:hover {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.ws-toolbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e4e4e7;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ws-toolbar__toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.ws-toolbar__sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------------------------------------------------------------------
+   빠른 정답표(Quick Answer Key) 부록 스타일 (.ws-sheet--answers)
+   --------------------------------------------------------------------- */
+.ws-sheet--answers {
+  break-before: page;
+  page-break-before: always;
+}
+
+.ws-answers-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 3mm;
+  overflow: hidden;
+}
+
+/* 1. 상단 통계 요약 바 */
+.ws-ans-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2mm 4mm;
+  border: 1px solid var(--c-charcoal);
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.ws-ans-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ws-ans-stat__label {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--c-meta);
+}
+
+.ws-ans-stat__val {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--c-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2. 4열 빠른 정답 그리드 */
+.ws-answers-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3.5mm;
+  align-items: start;
+}
+
+.ws-ans-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  background: var(--c-paper);
+  border: 1px solid var(--c-charcoal);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ws-ans-table th {
+  background: #f1f5f9;
+  color: var(--c-charcoal);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3.5px 2px;
+  border-bottom: 1.5px solid var(--c-charcoal);
+  text-align: center;
+}
+
+.ws-ans-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 3.5px 3px;
+  vertical-align: middle;
+}
+
+.ws-ans-table tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.ws-ans-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ws-ans-td--no {
+  width: 24px;
+  text-align: center;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.ws-ans-no-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--c-charcoal);
+  color: var(--c-paper);
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-ans-td--ans {
+  font-weight: 600;
+  color: var(--c-ink);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.ws-ans-td--ans .katex {
+  font-size: 1em;
+}
+
+.ws-ans-td--chk {
+  width: 18px;
+  text-align: center;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.ws-ans-check-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--c-meta);
+  border-radius: 2px;
+  background: #fff;
+}
+
+/* 3. 하단 오답 분석 및 교수법 체크리스트 */
+.ws-ans-review {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  margin-top: 1mm;
+}
+
+.ws-ans-review__header {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--c-charcoal);
+}
+
+.ws-ans-review__tag {
+  display: inline-block;
+  padding: 1px 7px;
+  background: var(--c-charcoal);
+  color: #fff;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.ws-ans-checklist {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5mm;
+}
+
+.ws-ans-chk-item {
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 2mm 3mm;
+  background: #fafafa;
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.ws-ans-chk-item p {
+  margin: 0;
+  color: var(--c-charcoal);
+}
+
+.ws-ans-step {
+  display: block;
+  font-weight: 700;
+  font-size: 9.5px;
+  color: var(--c-ink);
+  margin-bottom: 2px;
+}
+
+.ws-ans-memo {
+  flex: 1 1 0;
+  min-height: 25mm;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ws-ans-memo__title {
+  background: #f8fafc;
+  padding: 1.5mm 3mm;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--c-meta);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.ws-ans-memo__grid {
+  flex: 1 1 0;
+  min-height: 20mm;
+  background-color: var(--c-paper);
+  background-image: radial-gradient(var(--c-dot) var(--dot-r), transparent var(--dot-r));
+  background-size: var(--grid-step) var(--grid-step);
+  background-position: 0 0;
+}
+
+/* ---------------------------------------------------------------------
+   화면 미리보기 — 회색 바탕 위 종이. 인쇄에서는 사라진다.
+   --------------------------------------------------------------------- */
+@media screen {
+  html { background: var(--c-border); }
+
+  body { padding: 60px 16px 48px; }
+
+  .ws-doc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .page-sheet {
+    zoom: var(--screen-zoom, 1);
+    outline: 1px solid var(--c-dot);
+  }
+}
+
+@media print {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--c-paper);
+  }
+
+  .ws-toolbar {
+    display: none !important;
+  }
+
+  .ws-doc { display: block; }
+
+  .page-sheet {
+    zoom: 1;
+    outline: none;
+    /* 소수점 반올림으로 한 장이 다음 쪽으로 넘쳐 빈 페이지가 끼는 것을 막는다 (하단 여백만 0.5mm 줄어듦) */
+    height: calc(var(--page-h) - 0.5mm);
+  }
+
+  .page-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .ws-sheet--answers {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+}
