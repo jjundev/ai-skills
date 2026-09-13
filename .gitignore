@@ -21,3 +21,5 @@ Thumbs.db
 
 # OpenCLI adapter local runtime shim
 ask-dc/adapter/node_modules/
+ajou-bb/adapter/node_modules/
+plugins/ai-skills/skills/ajou-bb/adapter/node_modules/
