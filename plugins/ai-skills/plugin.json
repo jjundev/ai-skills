@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ai-skills",
+  "version": "0.1.0",
+  "description": "Reusable AI skills for ChatGPT and Codex.",
+  "author": {
+    "name": "jjundev"
+  },
+  "repository": "https://github.com/jjundev/ai-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "chatgpt",
+    "codex",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AI Skills",
+        "shortDescription": "Reusable workflows for ChatGPT and Codex.",
+        "longDescription": "A collection of reusable skills for research, coding, planning, study, and productivity workflows.",
+        "developerName": "jjundev",
+        "category": "Productivity",
+        "capabilities": ["Read"] ,
+        "websiteURL": "https://github.com/jjundev/ai-skills"
+      }
+    }
+  }
+}
