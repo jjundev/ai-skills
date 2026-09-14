@@ -28,17 +28,24 @@ OPENCLI_PKG_ROOT="$(node -e "import('fs').then(async fs => { const path = await 
 mkdir -p "$ADAPTER_DIR/node_modules/@jackwener" "$CLI_DIR"
 ln -sfn "$OPENCLI_PKG_ROOT" "$ADAPTER_DIR/node_modules/@jackwener/opencli"
 BACKUP=""
+ORIGINAL_TARGET_LINK=""
 restore_target() {
   status=$?
   trap - EXIT
-  if test "$status" -ne 0 && test -n "$BACKUP"; then
+  if test "$status" -ne 0; then
     test ! -L "$TARGET" || rm "$TARGET"
-    mv "$BACKUP" "$TARGET"
+    if test -n "$BACKUP"; then
+      mv "$BACKUP" "$TARGET"
+    elif test -n "$ORIGINAL_TARGET_LINK"; then
+      ln -s "$ORIGINAL_TARGET_LINK" "$TARGET"
+    fi
   fi
   exit "$status"
 }
 trap restore_target EXIT
-if test -e "$TARGET" && ! test -L "$TARGET"; then
+if test -L "$TARGET"; then
+  ORIGINAL_TARGET_LINK="$(readlink "$TARGET")"
+elif test -e "$TARGET"; then
   BACKUP="$CLI_DIR/ajou-bb.bak.$(date +%Y%m%d%H%M%S)"
   mv "$TARGET" "$BACKUP"
 fi

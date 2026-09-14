@@ -74,14 +74,53 @@ test -d "$ROLLBACK_TARGET"
 test -f "$ROLLBACK_TARGET/legacy-marker"
 test ! -e "$ROLLBACK_HOME/.opencli/clis/ajou-bb.bak."*
 
+LINK_ROLLBACK_HOME="$TEST_ROOT/link-rollback-home"
+LINK_ROLLBACK_TARGET="$LINK_ROLLBACK_HOME/.opencli/clis/ajou-bb"
+OLD_LINK_TARGET="$TEST_ROOT/old-link-target"
+mkdir -p "$(dirname "$LINK_ROLLBACK_TARGET")" "$OLD_LINK_TARGET"
+touch "$OLD_LINK_TARGET/old-link-marker"
+ln -s "$OLD_LINK_TARGET" "$LINK_ROLLBACK_TARGET"
+if PATH="$FAKE_OPENCLI_BIN:$PATH" HOME="$LINK_ROLLBACK_HOME" bash "$SKILL_DIR/scripts/setup.sh" >/dev/null 2>&1; then
+  echo 'setup unexpectedly passed with validation failure and an old symlink' >&2
+  exit 1
+fi
+test -L "$LINK_ROLLBACK_TARGET"
+test "$(cd -P "$LINK_ROLLBACK_TARGET" && pwd)" = "$(cd -P "$OLD_LINK_TARGET" && pwd)"
+test -f "$OLD_LINK_TARGET/old-link-marker"
+
 if [[ "$SKILL_DIR" == */plugins/ai-skills/skills/ajou-bb ]]; then
   PLUGIN_SKILL_DIR="$SKILL_DIR"
 else
   PLUGIN_SKILL_DIR="$SKILL_DIR/../plugins/ai-skills/skills/ajou-bb"
   DESTINATION_SHIM="$PLUGIN_SKILL_DIR/adapter/node_modules/@jackwener/opencli"
+  DESTINATION_PARENT="$(dirname "$DESTINATION_SHIM")"
+  DESTINATION_BACKUP="$TEST_ROOT/destination-shim-backup"
+  DESTINATION_OLD_TARGET="$TEST_ROOT/destination-old-target"
+  DESTINATION_EXISTED=0
+  if test -e "$DESTINATION_SHIM" || test -L "$DESTINATION_SHIM"; then
+    DESTINATION_EXISTED=1
+    mv "$DESTINATION_SHIM" "$DESTINATION_BACKUP"
+  fi
+  mkdir -p "$DESTINATION_OLD_TARGET" "$DESTINATION_PARENT"
+  touch "$DESTINATION_OLD_TARGET/no-fixture-marker"
+  ln -s "$DESTINATION_OLD_TARGET" "$DESTINATION_SHIM"
+  mv "$DESTINATION_SHIM" "$TEST_ROOT/destination-link-fixture"
   mkdir -p "$DESTINATION_SHIM"
   touch "$DESTINATION_SHIM/generated-shim-fixture"
   bash "$SKILL_DIR/scripts/sync-plugin-copy.sh"
-  test ! -e "$PLUGIN_SKILL_DIR/adapter/node_modules"
+  test ! -e "$DESTINATION_OLD_TARGET/generated-shim-fixture"
+  rm -rf "$DESTINATION_SHIM"
+  rmdir "$DESTINATION_PARENT" 2>/dev/null || true
+  mkdir -p "$DESTINATION_PARENT"
+  mv "$TEST_ROOT/destination-link-fixture" "$DESTINATION_SHIM"
+  test -L "$DESTINATION_SHIM"
+  test "$(cd -P "$DESTINATION_SHIM" && pwd)" = "$(cd -P "$DESTINATION_OLD_TARGET" && pwd)"
+  rm "$DESTINATION_SHIM"
+  if test "$DESTINATION_EXISTED" -eq 1; then
+    mv "$DESTINATION_BACKUP" "$DESTINATION_SHIM"
+  else
+    rmdir "$DESTINATION_PARENT" 2>/dev/null || true
+    rmdir "$(dirname "$DESTINATION_PARENT")" 2>/dev/null || true
+  fi
 fi
 diff -ru --exclude=node_modules --exclude=.DS_Store "$SKILL_DIR" "$PLUGIN_SKILL_DIR"
