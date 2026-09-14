@@ -73,3 +73,10 @@ fi
 test -d "$ROLLBACK_TARGET"
 test -f "$ROLLBACK_TARGET/legacy-marker"
 test ! -e "$ROLLBACK_HOME/.opencli/clis/ajou-bb.bak."*
+
+if [[ "$SKILL_DIR" == */plugins/ai-skills/skills/ajou-bb ]]; then
+  PLUGIN_SKILL_DIR="$SKILL_DIR"
+else
+  PLUGIN_SKILL_DIR="$SKILL_DIR/../plugins/ai-skills/skills/ajou-bb"
+fi
+diff -ru --exclude=node_modules --exclude=.DS_Store "$SKILL_DIR" "$PLUGIN_SKILL_DIR"
