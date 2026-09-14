@@ -15,7 +15,30 @@ if test -e "$SHIM" || test -L "$SHIM"; then
 fi
 GENERATED_SHIM_TARGET="$TEST_ROOT/fake-opencli"
 GENERATED_SHIM_PATH=""
+DESTINATION_SHIM=""
+DESTINATION_PARENT=""
+DESTINATION_BACKUP=""
+DESTINATION_EXISTED=0
+DESTINATION_RESTORE_PENDING=0
+restore_destination_shim() {
+  if test "$DESTINATION_RESTORE_PENDING" -eq 1; then
+    if test -L "$DESTINATION_SHIM"; then
+      rm "$DESTINATION_SHIM"
+    elif test -d "$DESTINATION_SHIM"; then
+      rm -rf "$DESTINATION_SHIM"
+    fi
+    if test "$DESTINATION_EXISTED" -eq 1; then
+      mkdir -p "$DESTINATION_PARENT"
+      mv "$DESTINATION_BACKUP" "$DESTINATION_SHIM"
+    else
+      rmdir "$DESTINATION_PARENT" 2>/dev/null || true
+      rmdir "$(dirname "$DESTINATION_PARENT")" 2>/dev/null || true
+    fi
+    DESTINATION_RESTORE_PENDING=0
+  fi
+}
 restore_test_state() {
+  restore_destination_shim
   if test -n "$GENERATED_SHIM_PATH" && test -L "$SHIM" && test "$(cd -P "$SHIM" && pwd)" = "$GENERATED_SHIM_PATH"; then
     rm "$SHIM"
   fi
@@ -101,6 +124,7 @@ else
     DESTINATION_EXISTED=1
     mv "$DESTINATION_SHIM" "$DESTINATION_BACKUP"
   fi
+  DESTINATION_RESTORE_PENDING=1
   mkdir -p "$DESTINATION_OLD_TARGET" "$DESTINATION_PARENT"
   touch "$DESTINATION_OLD_TARGET/no-fixture-marker"
   ln -s "$DESTINATION_OLD_TARGET" "$DESTINATION_SHIM"
@@ -109,6 +133,9 @@ else
   touch "$DESTINATION_SHIM/generated-shim-fixture"
   bash "$SKILL_DIR/scripts/sync-plugin-copy.sh"
   test ! -e "$DESTINATION_OLD_TARGET/generated-shim-fixture"
+  if test "${AJOU_BB_TEST_FAIL_AFTER_SYNC:-}" = 1; then
+    exit 1
+  fi
   rm -rf "$DESTINATION_SHIM"
   rmdir "$DESTINATION_PARENT" 2>/dev/null || true
   mkdir -p "$DESTINATION_PARENT"
@@ -122,5 +149,6 @@ else
     rmdir "$DESTINATION_PARENT" 2>/dev/null || true
     rmdir "$(dirname "$DESTINATION_PARENT")" 2>/dev/null || true
   fi
+  DESTINATION_RESTORE_PENDING=0
 fi
 diff -ru --exclude=node_modules --exclude=.DS_Store "$SKILL_DIR" "$PLUGIN_SKILL_DIR"
