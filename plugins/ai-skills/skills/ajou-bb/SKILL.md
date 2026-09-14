@@ -10,11 +10,17 @@ description: >
 
 # ajou-bb — 아주대학교 Blackboard Ultra LMS 도우미
 
+## Setup
+
+This skill owns the ajou-bb adapter source. Before the first Blackboard request on a machine, run `bash ./scripts/setup.sh` from this skill directory.
+
+Prerequisites: Node.js 20+ and a globally installed `opencli` command. Setup links `$HOME/.opencli/clis/ajou-bb` to this skill's adapter directory; it does not copy the adapter or make a Blackboard request. A physical existing adapter is kept as a timestamped backup.
+
 ## 🛡️ Ground Rules
-1. **Adapter First**: 모든 Blackboard 조작은 로컬 `opencli ajou-bb <subcommand>`를 최우선 호출합니다.
+1. **Adapter First**: 모든 Blackboard 조작은 이 링크된, 스킬 소유 어댑터를 호출하는 로컬 `opencli ajou-bb <subcommand>`를 최우선 호출합니다.
 2. **Inspect-then-Act**: 강의자료는 `contents`로 구조를 먼저 열람하고, 다운로드 대상이 확정된 후 `download`를 실행합니다.
 3. **Privacy Masking**: 학생 식별 번호(학번), 이메일, 토큰 등 PII는 명시적 요청이 없는 한 마스킹 상태를 유지합니다.
-4. **Standard Storage**: 다운로드 파일은 사용자가 별도 지정하지 않는 한 프로젝트 루트의 `./강의노트/<과목명>/`에 자동 분류 저장합니다.
+4. **Standard Storage**: 다운로드 파일은 `--out`을 별도 지정하지 않는 한 프로젝트 루트의 `./downloads/<course_name>/`에 저장합니다. 워크플로에서 `--out ./강의노트/<과목명>/`을 명시할 때만 해당 위치에 저장합니다.
 5. **Structured Briefing**: 브리핑 보고서는 D-Day 그룹핑(`🚨 D-3 이내 긴급`, `📅 이번 주 마감`, `📌 이후`) 테이블과 체크리스트로 출력합니다.
 6. **Incremental Diffing**: "새로 올라온 거 있어?", "뭐 더 올라왔어?", "안 본 거 있어?" 등의 증분 확인 요청 시 로컬 `./강의노트/<과목명>/` 보관 상태 및 최근 등록 일시와 대조하여 미확인/신규 항목을 구분해 브리핑합니다.
 
@@ -81,6 +87,7 @@ description: >
      * 특정 주차/키워드: `opencli ajou-bb download "<과목명>" --query "<키워드>" --out ./강의노트/<과목명>/ -f yaml`
      * 전체 다운로드: `opencli ajou-bb download "<과목명>" --all --out ./강의노트/<과목명>/ -f yaml`
      * 공지사항 첨부파일 다운로드: `opencli ajou-bb download "<과목명>" --announcements --out ./강의노트/<과목명>/ -f yaml`
+   - 어댑터 명령의 기본 저장 위치는 `./downloads/<course_name>/`으로 유지됩니다. `./강의노트/<course_name>/` 위치는 이 워크플로처럼 `--out ./강의노트/<course_name>/`을 명시적으로 전달할 때만 사용합니다.
 3. **Completion & Integrity Criterion**:
    - 다운로드 완료 후 파일명, 용량, 저장 위치(`destination_path`), 결과 상태(`downloaded`/`skipped`)를 테이블로 안내.
    - ⚠️ **무결성 사후 검증(Integrity Check)**: 다운로드된 파일들이 모두 동일한 크기(예: 77KB 내외)이거나 HTML 로그인/리디렉션 쉘(`<HTML`)이 아닌지 확인. 실제 문서 매직 바이트(HWP 5.x, PDF, ZIP 등) 및 정상 용량을 검증한 뒤 보고서를 마무리합니다(더미 HTML 감지 시 하단 Troubleshooting 참조).
@@ -147,6 +154,8 @@ description: >
 ---
 
 ## 💡 Troubleshooting
+- **명령 등록 실패 (`opencli ajou-bb`를 찾을 수 없음)**:
+  - 이 스킬 디렉터리에서 `bash ./scripts/setup.sh`를 다시 실행해 `$HOME/.opencli/clis/ajou-bb` 링크를 재등록하십시오.
 - **세션 검증 (`Session Check`)**:
   - `opencli ajou-bb status`로 세션 유효성을 확인합니다.
 - **인증 만료 (`AuthRequiredError`, Exit Code 77)**:
