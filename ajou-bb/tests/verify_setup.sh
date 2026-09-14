@@ -22,6 +22,10 @@ DESTINATION_EXISTED=0
 DESTINATION_RESTORE_PENDING=0
 restore_destination_shim() {
   if test "$DESTINATION_RESTORE_PENDING" -eq 1; then
+    if test "$DESTINATION_EXISTED" -eq 1 && ! { test -e "$DESTINATION_BACKUP" || test -L "$DESTINATION_BACKUP"; }; then
+      DESTINATION_RESTORE_PENDING=0
+      return
+    fi
     if test -L "$DESTINATION_SHIM"; then
       rm "$DESTINATION_SHIM"
     elif test -d "$DESTINATION_SHIM"; then
@@ -122,6 +126,10 @@ else
   DESTINATION_EXISTED=0
   if test -e "$DESTINATION_SHIM" || test -L "$DESTINATION_SHIM"; then
     DESTINATION_EXISTED=1
+    DESTINATION_RESTORE_PENDING=1
+    if test "${AJOU_BB_TEST_FAIL_AFTER_DESTINATION_ARM:-}" = 1; then
+      exit 1
+    fi
     mv "$DESTINATION_SHIM" "$DESTINATION_BACKUP"
   fi
   DESTINATION_RESTORE_PENDING=1
