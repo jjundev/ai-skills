@@ -78,5 +78,10 @@ if [[ "$SKILL_DIR" == */plugins/ai-skills/skills/ajou-bb ]]; then
   PLUGIN_SKILL_DIR="$SKILL_DIR"
 else
   PLUGIN_SKILL_DIR="$SKILL_DIR/../plugins/ai-skills/skills/ajou-bb"
+  DESTINATION_SHIM="$PLUGIN_SKILL_DIR/adapter/node_modules/@jackwener/opencli"
+  mkdir -p "$DESTINATION_SHIM"
+  touch "$DESTINATION_SHIM/generated-shim-fixture"
+  bash "$SKILL_DIR/scripts/sync-plugin-copy.sh"
+  test ! -e "$PLUGIN_SKILL_DIR/adapter/node_modules"
 fi
 diff -ru --exclude=node_modules --exclude=.DS_Store "$SKILL_DIR" "$PLUGIN_SKILL_DIR"

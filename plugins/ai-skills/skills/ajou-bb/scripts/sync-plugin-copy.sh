@@ -11,5 +11,7 @@ REPO_ROOT="$(cd "$SOURCE_SKILL_DIR/.." && pwd)"
 DESTINATION="$REPO_ROOT/plugins/ai-skills/skills/ajou-bb"
 
 mkdir -p "$DESTINATION"
+rm -rf -- "$DESTINATION/adapter/node_modules"
 rsync -a --delete --exclude='adapter/node_modules/' --exclude=.DS_Store "$SOURCE_SKILL_DIR/" "$DESTINATION/"
+test ! -e "$DESTINATION/adapter/node_modules"
 diff -ru --exclude=node_modules --exclude=.DS_Store "$SOURCE_SKILL_DIR" "$DESTINATION"

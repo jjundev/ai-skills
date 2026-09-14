@@ -108,6 +108,7 @@ export function normalizeUserProfile(rawUser) {
         email,
     };
 }
+
 /**
  * Normalizes raw course payload to CourseRecord.
  */
@@ -972,3 +973,4 @@ export function normalizeAnalyticsData(raw) {
         access_statistics: accessStats,
     };
 }
+
