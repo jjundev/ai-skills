@@ -4,8 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ADAPTER_DIR="$SKILL_DIR/adapter"
-OPENCLI_HOME="${OPENCLI_HOME:-$HOME/.opencli}"
-CLI_DIR="$OPENCLI_HOME/clis"
+CLI_DIR="$HOME/.opencli/clis"
 TARGET="$CLI_DIR/ajou-bb"
 
 command -v node >/dev/null || { echo 'Node.js 20+ is required.' >&2; exit 1; }
@@ -44,6 +43,6 @@ if test -e "$TARGET" && ! test -L "$TARGET"; then
   mv "$TARGET" "$BACKUP"
 fi
 ln -sfn "$ADAPTER_DIR" "$TARGET"
-OPENCLI_HOME="$OPENCLI_HOME" opencli ajou-bb --help >/dev/null
-OPENCLI_HOME="$OPENCLI_HOME" opencli validate ajou-bb
+opencli ajou-bb --help >/dev/null
+opencli validate ajou-bb
 trap - EXIT
