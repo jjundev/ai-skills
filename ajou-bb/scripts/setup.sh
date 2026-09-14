@@ -9,6 +9,16 @@ CLI_DIR="$OPENCLI_HOME/clis"
 TARGET="$CLI_DIR/ajou-bb"
 
 command -v node >/dev/null || { echo 'Node.js 20+ is required.' >&2; exit 1; }
+NODE_VERSION="$(node --version)"
+NODE_MAJOR="${NODE_VERSION#v}"
+NODE_MAJOR="${NODE_MAJOR%%.*}"
+case "$NODE_MAJOR" in
+  ''|*[!0-9]*) echo 'Node.js 20+ is required.' >&2; exit 1 ;;
+esac
+if (( NODE_MAJOR < 20 )); then
+  echo 'Node.js 20+ is required.' >&2
+  exit 1
+fi
 command -v opencli >/dev/null || { echo 'Install OpenCLI first: npm install -g @jackwener/opencli' >&2; exit 1; }
 test -f "$ADAPTER_DIR/common.js" || { echo 'Canonical adapter is incomplete.' >&2; exit 1; }
 
@@ -18,10 +28,22 @@ OPENCLI_PKG_ROOT="$(node -e "import('fs').then(async fs => { const path = await 
 
 mkdir -p "$ADAPTER_DIR/node_modules/@jackwener" "$CLI_DIR"
 ln -sfn "$OPENCLI_PKG_ROOT" "$ADAPTER_DIR/node_modules/@jackwener/opencli"
+BACKUP=""
+restore_target() {
+  status=$?
+  trap - EXIT
+  if test "$status" -ne 0 && test -n "$BACKUP"; then
+    test ! -L "$TARGET" || rm "$TARGET"
+    mv "$BACKUP" "$TARGET"
+  fi
+  exit "$status"
+}
+trap restore_target EXIT
 if test -e "$TARGET" && ! test -L "$TARGET"; then
   BACKUP="$CLI_DIR/ajou-bb.bak.$(date +%Y%m%d%H%M%S)"
   mv "$TARGET" "$BACKUP"
 fi
 ln -sfn "$ADAPTER_DIR" "$TARGET"
-opencli ajou-bb --help >/dev/null
-opencli validate ajou-bb
+OPENCLI_HOME="$OPENCLI_HOME" opencli ajou-bb --help >/dev/null
+OPENCLI_HOME="$OPENCLI_HOME" opencli validate ajou-bb
+trap - EXIT

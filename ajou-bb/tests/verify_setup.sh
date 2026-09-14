@@ -15,5 +15,43 @@ HOME="$TEST_ROOT" bash "$SKILL_DIR/scripts/setup.sh"
 TARGET="$TEST_ROOT/.opencli/clis/ajou-bb"
 test -L "$TARGET"
 test "$(cd -P "$TARGET" && pwd)" = "$SKILL_DIR/adapter"
+
+FAKE_NODE_BIN="$TEST_ROOT/fake-node-bin"
+mkdir -p "$FAKE_NODE_BIN"
+printf '#!/usr/bin/env bash\nprintf "v18.20.0\\n"\n' > "$FAKE_NODE_BIN/node"
+chmod +x "$FAKE_NODE_BIN/node"
+if PATH="$FAKE_NODE_BIN:$PATH" HOME="$TEST_ROOT" OPENCLI_HOME="$TEST_ROOT/old-node-opencli" bash "$SKILL_DIR/scripts/setup.sh" >/dev/null 2>"$TEST_ROOT/node-version.err"; then
+  echo 'setup accepted Node.js 18' >&2
+  exit 1
+fi
+grep -q 'Node.js 20+ is required.' "$TEST_ROOT/node-version.err"
+
+ROLLBACK_HOME="$TEST_ROOT/rollback-opencli"
+ROLLBACK_TARGET="$ROLLBACK_HOME/clis/ajou-bb"
+mkdir -p "$ROLLBACK_TARGET"
+touch "$ROLLBACK_TARGET/legacy-marker"
+FAKE_OPENCLI_ROOT="$TEST_ROOT/fake-opencli"
+FAKE_OPENCLI_BIN="$FAKE_OPENCLI_ROOT/bin"
+mkdir -p "$FAKE_OPENCLI_BIN"
+printf '{}' > "$FAKE_OPENCLI_ROOT/package.json"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$FAKE_OPENCLI_BIN/opencli"
+chmod +x "$FAKE_OPENCLI_BIN/opencli"
+if PATH="$FAKE_OPENCLI_BIN:$PATH" HOME="$TEST_ROOT" OPENCLI_HOME="$ROLLBACK_HOME" bash "$SKILL_DIR/scripts/setup.sh" >/dev/null 2>&1; then
+  echo 'setup unexpectedly passed with a failing OpenCLI command' >&2
+  exit 1
+fi
+test -d "$ROLLBACK_TARGET"
+test -f "$ROLLBACK_TARGET/legacy-marker"
+test ! -e "$ROLLBACK_HOME/clis/ajou-bb.bak."*
+
+HOME="$TEST_ROOT" bash "$SKILL_DIR/scripts/setup.sh"
 HOME="$TEST_ROOT" opencli ajou-bb --help | grep -q assignments
 HOME="$TEST_ROOT" opencli validate ajou-bb | grep -q PASS
+
+OVERRIDE_HOME="$TEST_ROOT/custom-opencli"
+HOME="$TEST_ROOT" OPENCLI_HOME="$OVERRIDE_HOME" bash "$SKILL_DIR/scripts/setup.sh"
+OVERRIDE_TARGET="$OVERRIDE_HOME/clis/ajou-bb"
+test -L "$OVERRIDE_TARGET"
+test "$(cd -P "$OVERRIDE_TARGET" && pwd)" = "$SKILL_DIR/adapter"
+HOME="$TEST_ROOT" OPENCLI_HOME="$OVERRIDE_HOME" opencli ajou-bb --help | grep -q assignments
+HOME="$TEST_ROOT" OPENCLI_HOME="$OVERRIDE_HOME" opencli validate ajou-bb | grep -q PASS
