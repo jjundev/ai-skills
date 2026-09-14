@@ -973,4 +973,3 @@ export function normalizeAnalyticsData(raw) {
         access_statistics: accessStats,
     };
 }
-

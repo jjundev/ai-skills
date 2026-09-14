@@ -812,5 +812,3 @@ export async function fetchCourseAnalytics(page, courseId, contentId = null) {
 
     return normalizeAnalyticsData(rawData);
 }
-
-
