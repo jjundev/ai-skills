@@ -23,3 +23,6 @@ Thumbs.db
 ask-dc/adapter/node_modules/
 ajou-bb/adapter/node_modules/
 plugins/ai-skills/skills/ajou-bb/adapter/node_modules/
+
+# Local backup created by link-global-skills.ps1
+.global-skills-backup/
