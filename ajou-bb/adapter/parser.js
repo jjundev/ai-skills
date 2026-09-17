@@ -189,7 +189,7 @@ function resolveContentType(rawContent) {
     ).toLowerCase();
 
     if (rawHandler.includes('folder') || rawHandler.includes('lesson')) return 'folder';
-    if (rawHandler.includes('assignment') || rawHandler.includes('asg-test') || rawHandler.includes('assessment')) return 'assignment';
+    if (rawHandler.includes('assignment') || rawHandler.includes('asg-test') || rawHandler.includes('assessment') || rawHandler.includes('asmt-test')) return 'assignment';
     if (rawHandler.includes('file') || rawHandler.includes('attachment')) return 'file';
     if (rawHandler.includes('document') || rawHandler.includes('courselink')) return 'document';
     if (rawHandler.includes('externallink') || rawHandler.includes('url') || rawHandler.includes('link')) return 'link';
@@ -205,7 +205,8 @@ export function normalizeContentItem(rawContent) {
     const contentId = String(raw.id ?? raw.content_id ?? '').trim();
     const title = String(raw.title ?? raw.name ?? '').trim();
     const contentType = resolveContentType(raw);
-    const description = raw.description ?? raw.body ?? null;
+    const rawInstructions = raw.contentHandler?.instructions ?? raw.instructions ?? null;
+    const description = raw.description ?? raw.body ?? rawInstructions ?? null;
     const hasChildren = Boolean(
         raw.hasChildren
         ?? raw.has_children
@@ -297,6 +298,17 @@ export function normalizeContentItem(rawContent) {
         fileUrl = webLink;
     }
 
+    const extractedAttachments = extractAnnouncementAttachments(description, raw.attachments);
+    if (extractedAttachments.length > 0) {
+        if (!fileName && extractedAttachments.length === 1) {
+            fileName = extractedAttachments[0].file_name;
+            fileUrl = extractedAttachments[0].file_url;
+            if (finalType === 'document' || finalType === 'other') {
+                finalType = 'file';
+            }
+        }
+    }
+
     const createdAt = raw.created ?? raw.createdAt ?? raw.created_at ?? null;
     const modifiedAt = raw.modified ?? raw.modifiedAt ?? raw.modified_at ?? null;
 
@@ -309,6 +321,7 @@ export function normalizeContentItem(rawContent) {
         file_name: fileName,
         file_url: fileUrl,
         web_link: webLink,
+        attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
         created_at: createdAt,
         modified_at: modifiedAt,
     };

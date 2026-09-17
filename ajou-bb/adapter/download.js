@@ -166,7 +166,7 @@ export async function downloadCommand(page, args = {}) {
         let downloadUrl = file.file_url;
         let actualFileName = file.file_name || file.title || 'download';
 
-        if (file.content_id && !String(file.content_id).startsWith('announcement_')) {
+        if (file.content_id && !String(file.content_id).startsWith('announcement_') && !String(file.content_id).includes('_att_')) {
             try {
                 const attList = await fetchBbRest(page, `/learn/api/public/v1/courses/${course.course_id}/contents/${file.content_id}/attachments`);
                 const attachments = Array.isArray(attList?.results) ? attList.results : (Array.isArray(attList) ? attList : []);

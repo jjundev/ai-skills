@@ -735,6 +735,23 @@ export function collectDownloadableFiles(contentNodes) {
             });
         }
 
+        if (Array.isArray(node.attachments) && node.attachments.length > 0) {
+            for (let idx = 0; idx < node.attachments.length; idx++) {
+                const att = node.attachments[idx];
+                if (att && att.file_url) {
+                    if (isFile && (att.file_url === fileUrl || att.file_name === node.file_name)) continue;
+                    files.push({
+                        content_id: `${node.content_id || 'item'}_att_${idx}`,
+                        title: node.title ? `${node.title} - ${att.file_name}` : att.file_name,
+                        file_name: att.file_name,
+                        file_url: att.file_url,
+                        size_bytes: att.file_size ?? null,
+                        source: node.content_type || 'attachment',
+                    });
+                }
+            }
+        }
+
         if (Array.isArray(node.children) && node.children.length > 0) {
             const childFiles = collectDownloadableFiles(node.children);
             files.push(...childFiles);
