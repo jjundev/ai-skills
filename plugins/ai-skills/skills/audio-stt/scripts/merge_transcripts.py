@@ -15,6 +15,7 @@ def merge_transcripts(
     segment_seconds: int = 600,
     keep_parts: bool = False,
     output_file: str = "",
+    timestamps: bool = False,
 ) -> str:
     target_dir = os.path.abspath(target_dir)
     pattern = re.compile(rf"^{re.escape(prefix)}.*part(\d+)\.md$" if prefix else r"^.*part(\d+)\.md$")
@@ -55,26 +56,35 @@ def merge_transcripts(
     for part_num, p_file in part_files:
         offset_seconds = (part_num - 1) * segment_seconds
         part_path = os.path.join(target_dir, p_file)
-        start_min = (part_num - 1) * (segment_seconds // 60)
-        full_content.append(f"## Part {part_num:02d} ({start_min:02d}:00 ~ )\n\n")
+        if timestamps:
+            start_min = (part_num - 1) * (segment_seconds // 60)
+            full_content.append(f"## Part {part_num:02d} ({start_min:02d}:00 ~ )\n\n")
+        else:
+            full_content.append(f"## Part {part_num:02d}\n\n")
 
         with open(part_path, "r", encoding="utf-8") as f:
             for line in f:
                 line_clean = line.strip()
                 match = timestamp_pattern.match(line_clean)
                 if match:
-                    mm, ss = int(match.group(1)), int(match.group(2))
-                    total_sec = offset_seconds + mm * 60 + ss
-                    new_mm = total_sec // 60
-                    new_ss = total_sec % 60
-                    full_content.append(f"{new_mm:02d}:{new_ss:02d}\n")
+                    if timestamps:
+                        mm, ss = int(match.group(1)), int(match.group(2))
+                        total_sec = offset_seconds + mm * 60 + ss
+                        new_mm = total_sec // 60
+                        new_ss = total_sec % 60
+                        full_content.append(f"{new_mm:02d}:{new_ss:02d}\n")
+                    else:
+                        # Strip timestamp line when timestamps is False
+                        continue
                 else:
                     full_content.append(line)
 
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        raw_text = "".join(full_content)
+        cleaned_text = re.sub(r"\n{3,}", "\n\n", raw_text)
         with open(output_path, "w", encoding="utf-8") as f:
-            f.writelines(full_content)
+            f.write(cleaned_text)
     except Exception as e:
         print(f"Error writing output file {output_path}: {e}", file=sys.stderr)
         return ""
@@ -128,6 +138,13 @@ def main():
     parser.add_argument("--segment-seconds", type=int, default=600, help="Duration of each segment in seconds (default: 600)")
     parser.add_argument("--keep-parts", action="store_true", default=False, help="Keep intermediate part files (default: False, clean them up)")
     parser.add_argument("--output", default="", help="Custom output filename or path (default: <prefix>.md)")
+    parser.add_argument(
+        "--timestamps",
+        "-t",
+        action="store_true",
+        default=False,
+        help="Include continuous MM:SS timestamps in merged transcript (default: False)",
+    )
     args = parser.parse_args()
 
     out = merge_transcripts(
@@ -136,6 +153,7 @@ def main():
         segment_seconds=args.segment_seconds,
         keep_parts=args.keep_parts,
         output_file=args.output,
+        timestamps=args.timestamps,
     )
     if not out:
         sys.exit(1)

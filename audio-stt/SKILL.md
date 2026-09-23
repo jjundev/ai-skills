@@ -107,6 +107,11 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
      ```bash
      python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --keep-parts
      ```
+   - **Combined Options (`--timestamps --keep-parts`)**:
+     Combine flags when both timestamps and part retention are needed:
+     ```bash
+     python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --timestamps --keep-parts
+     ```
 
 5. **Cleanup Verification**:
    - By default, `merge_transcripts.py` automatically deletes intermediate part files (`_part*.md`, `_part*.mp3`, `*_temp.mp4`) once the merged file is verified non-empty.

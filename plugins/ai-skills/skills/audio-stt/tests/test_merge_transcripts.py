@@ -5,6 +5,7 @@ Automated unit tests for merge_transcripts.py
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -162,6 +163,7 @@ class TestMergeTranscripts(unittest.TestCase):
             prefix="lecture",
             segment_seconds=600,
             keep_parts=True,
+            timestamps=True,
         )
         self.assertTrue(os.path.isfile(result))
 
@@ -186,6 +188,109 @@ class TestMergeTranscripts(unittest.TestCase):
         # In Part 3 (offset +20:00):
         # 02:15 + 20:00 = 22:15
         self.assertIn("22:15", lines)
+
+    def test_merge_transcripts_default_strips_timestamps(self):
+        """
+        Verify that default timestamps=False strips MM:SS timestamp lines
+        and outputs clean headers without time intervals.
+        """
+        part1_path = os.path.join(self.test_dir, "meeting_part01.md")
+        part2_path = os.path.join(self.test_dir, "meeting_part02.md")
+
+        with open(part1_path, "w", encoding="utf-8") as f:
+            f.write("00:05\n안녕하세요 반갑습니다.\n\n00:20\n오늘 회의를 시작하겠습니다.\n")
+        with open(part2_path, "w", encoding="utf-8") as f:
+            f.write("01:10\n이어서 두 번째 안건입니다.\n")
+
+        result = merge_transcripts(self.test_dir, prefix="meeting", keep_parts=True)
+        self.assertTrue(os.path.isfile(result))
+
+        with open(result, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Headers should not contain (XX:00 ~ )
+        self.assertIn("## Part 01\n", content)
+        self.assertNotIn("## Part 01 (00:00 ~ )", content)
+        self.assertIn("## Part 02\n", content)
+        self.assertNotIn("## Part 02 (10:00 ~ )", content)
+
+        # Timestamps should be stripped
+        self.assertNotIn("00:05", content)
+        self.assertNotIn("00:20", content)
+        self.assertNotIn("11:10", content)
+
+        # Content must be preserved
+        self.assertIn("안녕하세요 반갑습니다.", content)
+        self.assertIn("오늘 회의를 시작하겠습니다.", content)
+        self.assertIn("이어서 두 번째 안건입니다.", content)
+
+    def test_merge_transcripts_cli_timestamps_flag(self):
+        """
+        Verify CLI accepts --timestamps and -t flags, and outputs continuous
+        timestamps and interval headers when specified.
+        """
+        script_path = str(SCRIPTS_DIR / "merge_transcripts.py")
+        part1_path = os.path.join(self.test_dir, "cli_part01.md")
+        with open(part1_path, "w", encoding="utf-8") as f:
+            f.write("00:10\nCLI test text.\n")
+
+        # Test with --timestamps
+        out1 = os.path.join(self.test_dir, "cli_out1.md")
+        cmd1 = [
+            sys.executable,
+            script_path,
+            "--dir", self.test_dir,
+            "--prefix", "cli",
+            "--keep-parts",
+            "--output", out1,
+            "--timestamps",
+        ]
+        proc1 = subprocess.run(cmd1, capture_output=True, text=True)
+        self.assertEqual(proc1.returncode, 0, f"CLI stderr: {proc1.stderr}")
+        self.assertTrue(os.path.isfile(out1))
+        with open(out1, "r", encoding="utf-8") as f:
+            c1 = f.read()
+        self.assertIn("## Part 01 (00:00 ~ )", c1)
+        self.assertIn("00:10", c1)
+
+        # Test with -t
+        out2 = os.path.join(self.test_dir, "cli_out2.md")
+        cmd2 = [
+            sys.executable,
+            script_path,
+            "--dir", self.test_dir,
+            "--prefix", "cli",
+            "--keep-parts",
+            "--output", out2,
+            "-t",
+        ]
+        proc2 = subprocess.run(cmd2, capture_output=True, text=True)
+        self.assertEqual(proc2.returncode, 0, f"CLI stderr: {proc2.stderr}")
+        self.assertTrue(os.path.isfile(out2))
+        with open(out2, "r", encoding="utf-8") as f:
+            c2 = f.read()
+        self.assertIn("## Part 01 (00:00 ~ )", c2)
+        self.assertIn("00:10", c2)
+
+        # Test default CLI (no timestamps flag)
+        out3 = os.path.join(self.test_dir, "cli_out3.md")
+        cmd3 = [
+            sys.executable,
+            script_path,
+            "--dir", self.test_dir,
+            "--prefix", "cli",
+            "--keep-parts",
+            "--output", out3,
+        ]
+        proc3 = subprocess.run(cmd3, capture_output=True, text=True)
+        self.assertEqual(proc3.returncode, 0, f"CLI stderr: {proc3.stderr}")
+        self.assertTrue(os.path.isfile(out3))
+        with open(out3, "r", encoding="utf-8") as f:
+            c3 = f.read()
+        self.assertIn("## Part 01\n", c3)
+        self.assertNotIn("## Part 01 (00:00 ~ )", c3)
+        self.assertNotIn("00:10", c3)
+        self.assertIn("CLI test text.", c3)
 
     def test_merge_transcripts_safety_on_error(self):
         """
