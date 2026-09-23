@@ -1,6 +1,6 @@
 ---
 name: audio-stt
-description: Transcribe speech from audio/video files verbatim using direct multimodal perception without external Whisper. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.).
+description: Transcribe speech verbatim. By default outputs clean text without timestamps; use --timestamps or -t to include MM:SS timestamps. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.).
 ---
 
 # Audio STT (Direct Multimodal Transcription)
@@ -17,7 +17,10 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    - Wrapping audio with a minimal 1-fps black canvas video (`color=c=black:s=320x240:r=1`) in an `.mp4` container allows direct audio listening with zero visual overhead and zero external API fees.
 3. **10-Minute Segmentation for Long Media**:
    - For audio longer than 10 minutes, slice into 10-minute (600s) chunks to prevent context truncation and enable **Parallel Subagent** execution.
-4. **Unified Single-File Output & Clean Workspace**:
+4. **Plain Text by Default (Optional Timestamps)**:
+   - Default transcription outputs natural paragraphs (2~4 sentences per paragraph, separated by blank lines `\n\n`) without timestamps.
+   - Timestamps (`MM:SS`) are generated only when `--timestamps`, `-t`, or user explicitly asks (e.g., '타임스탬프 포함').
+5. **Unified Single-File Output & Clean Workspace**:
    - Both short (<= 10 min) and long (> 10 min) audio default to producing a single `.md` file (`<NAME>.md`).
    - Intermediate chunk files (`_part*.mp3`, `_part*.md`, `*_temp.mp4`) are automatically cleaned up upon successful merge.
    - Retain intermediate segment files with `--keep-parts` when explicitly requested by user (e.g., "중간 파일도 남겨줘", "파트별 파일 보존").
@@ -31,7 +34,9 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    dur=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "<AUDIO_PATH>")
    ffmpeg -y -f lavfi -i color=c=black:s=320x240:r=1 -i "<AUDIO_PATH>" -t "$dur" -c:v libx264 -c:a aac -b:a 128k "<WORKSPACE>/_temp_stt.mp4"
    ```
-2. **Perceive via `view_file`**: Call `view_file` on `_temp_stt.mp4` and transcribe all spoken content with `MM:SS` timestamps.
+2. **Perceive via `view_file`**: Call `view_file` on `_temp_stt.mp4`.
+   - **Default (Plain Text)**: Transcribe all spoken content verbatim into coherent paragraphs (2~4 sentences per paragraph, separated by blank lines `\n\n`) without `MM:SS` timestamps.
+   - **If `--timestamps` / `-t` specified**: Transcribe with `MM:SS` timestamps preceding each speech segment.
 3. **Save Transcript**: Write verbatim markdown to `<AUDIO_DIR>/<NAME>.md`.
 4. **Cleanup**: `rm -f "<WORKSPACE>/_temp_stt.mp4"`
 
@@ -60,36 +65,45 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    ```
 
 3. **Dispatch Parallel Subagents**: Concurrently spawn one `self` subagent per part.
-   - **Subagent Prompt**:
+   - **Subagent Prompt (Default - Clean Text without Timestamps)**:
      ```text
      You are a verbatim STT transcription agent.
      Target video: <OUTPUT_DIR>/<NAME>_part01_temp.mp4
      Output markdown: <OUTPUT_DIR>/<NAME>_part01.md
 
      Instructions:
-     1. Call `view_file` on `<OUTPUT_DIR>/<NAME>_part01_temp.mp4`.
-     2. Transcribe ALL spoken words verbatim from 00:00 to the end. Do not skip, summarize, or omit anything.
-     3. Format strictly as:
-     MM:SS
-     발화내용 문장
-
-     MM:SS
-     발화내용 문장
-
-     4. Save directly to `<OUTPUT_DIR>/<NAME>_part01.md` using `write_to_file`. Ensure Overwrite is true.
+     1. Call `view_file` on <OUTPUT_DIR>/<NAME>_part01_temp.mp4.
+     2. Transcribe ALL spoken words verbatim from start to finish. Do not skip, summarize, or omit anything.
+     3. Format strictly as clean text without timestamps: group 2~4 sentences per paragraph, separated by blank lines.
+     4. Save directly to <OUTPUT_DIR>/<NAME>_part01.md using `write_to_file`. Ensure Overwrite is true.
      5. Strict Guardrails:
         - Perform the transcription in a single pass directly from the initial `view_file` call.
         - Do NOT inspect other part files or compare transcripts.
         - Do NOT run audio analysis, silence detection, ffmpeg slicing, or additional diagnostic tools.
      6. Report completion immediately when done.
      ```
+   - **Subagent Prompt Variant (With `--timestamps` / `-t`)**:
+     Replace instruction 3 with:
+     ```text
+     3. Format strictly with MM:SS timestamps:
+     MM:SS
+     발화내용 문장
+
+     MM:SS
+     발화내용 문장
+     ```
 
 4. **Merge Master Transcript & Auto-Cleanup**:
-   - Default (Single unified `<NAME>.md` output, cleans up chunk files):
+   - **Default (Plain Text)**:
      ```bash
      python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>"
      ```
-   - If the user explicitly asks to keep intermediate part files (e.g. "중간 파일도 남겨줘", "파트별 파일 보존"):
+   - **With Timestamps (`--timestamps` / `-t`)**:
+     ```bash
+     python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --timestamps
+     ```
+   - **Keep Intermediate Part Files (`--keep-parts`)**:
+     Add `--keep-parts` if explicitly requested (e.g., "중간 파일도 남겨줘", "파트별 파일 보존"):
      ```bash
      python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --keep-parts
      ```
@@ -101,6 +115,16 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 ---
 
 ## 📝 Format Specification
+
+### Default (Clean Text without Timestamps)
+
+```text
+전문가로 위촉돼서 활동하고 있습니다. 그러다 보니 자연스럽게 채용 시장의 변화를 바라보고 있습니다. 채용 시장의 트렌드가 급격하게 바뀌고 있는 것을 체감합니다.
+
+네, 계속 진행하도록 하겠습니다. 비대면 강의는 오늘 처음입니다. 온라인 환경이라 다소 낯설지만 최선을 다해 전달해 드리겠습니다.
+```
+
+### With `--timestamps` / `-t`
 
 ```text
 00:00
@@ -115,8 +139,8 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 ## ✅ Completion Criteria
 
 - [ ] Audio preprocessed with 1-fps black MP4 wrapper matching exact audio duration (`-t "$dur"`).
-- [ ] Verbatim transcription from 00:00 to finish without omission.
+- [ ] Verbatim transcription from start to finish without omission.
 - [ ] Subagents operate in a single pass without tangent diagnostic loops.
-- [ ] Formatted strictly with `MM:SS\n발화내용\n\n`.
+- [ ] Verbatim transcription without timestamps by default (or with `MM:SS` when `--timestamps` is requested).
 - [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) for both short and long audio.
 - [ ] Intermediate chunk files cleaned up by default (or preserved only if `--keep-parts` was requested).
