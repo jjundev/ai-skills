@@ -26,9 +26,10 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 
 ## 🛠️ Workflow A: Single File (<= 10 Minutes)
 
-1. **Wrap in MP4 Container**:
+1. **Wrap in MP4 Container (Exact Duration Match)**:
    ```bash
-   ffmpeg -y -f lavfi -i color=c=black:s=320x240:r=1 -i "<AUDIO_PATH>" -c:v libx264 -shortest -c:a aac -b:a 128k "<WORKSPACE>/_temp_stt.mp4"
+   dur=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "<AUDIO_PATH>")
+   ffmpeg -y -f lavfi -i color=c=black:s=320x240:r=1 -i "<AUDIO_PATH>" -t "$dur" -c:v libx264 -c:a aac -b:a 128k "<WORKSPACE>/_temp_stt.mp4"
    ```
 2. **Perceive via `view_file`**: Call `view_file` on `_temp_stt.mp4` and transcribe all spoken content with `MM:SS` timestamps.
 3. **Save Transcript**: Write verbatim markdown to `<AUDIO_DIR>/<NAME>.md`.
@@ -46,12 +47,16 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
      "<OUTPUT_DIR>/<NAME>_part%02d.mp3"
    ```
 
-2. **Batch Wrap into MP4s**:
+2. **Batch Wrap into MP4s (Parallel & Exact Duration)**:
    ```bash
    for f in "<OUTPUT_DIR>"/*_part*.mp3; do
-     ffmpeg -y -f lavfi -i color=c=black:s=320x240:r=1 \
-       -i "$f" -c:v libx264 -shortest -c:a aac -b:a 128k "${f%.mp3}_temp.mp4"
+     (
+       dur=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$f")
+       ffmpeg -y -f lavfi -i color=c=black:s=320x240:r=1 \
+         -i "$f" -t "$dur" -c:v libx264 -c:a aac -b:a 128k "${f%.mp3}_temp.mp4" -loglevel error
+     ) &
    done
+   wait
    ```
 
 3. **Dispatch Parallel Subagents**: Concurrently spawn one `self` subagent per part.
@@ -63,7 +68,7 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 
      Instructions:
      1. Call `view_file` on `<OUTPUT_DIR>/<NAME>_part01_temp.mp4`.
-     2. Transcribe ALL spoken words verbatim from 00:00 to the end.
+     2. Transcribe ALL spoken words verbatim from 00:00 to the end. Do not skip, summarize, or omit anything.
      3. Format strictly as:
      MM:SS
      발화내용 문장
@@ -71,7 +76,12 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
      MM:SS
      발화내용 문장
 
-     4. Save directly to `<OUTPUT_DIR>/<NAME>_part01.md` using `write_to_file`.
+     4. Save directly to `<OUTPUT_DIR>/<NAME>_part01.md` using `write_to_file`. Ensure Overwrite is true.
+     5. Strict Guardrails:
+        - Perform the transcription in a single pass directly from the initial `view_file` call.
+        - Do NOT inspect other part files or compare transcripts.
+        - Do NOT run audio analysis, silence detection, ffmpeg slicing, or additional diagnostic tools.
+     6. Report completion immediately when done.
      ```
 
 4. **Merge Master Transcript & Auto-Cleanup**:
@@ -104,8 +114,9 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 
 ## ✅ Completion Criteria
 
-- [ ] Audio preprocessed with 1-fps black MP4 wrapper.
+- [ ] Audio preprocessed with 1-fps black MP4 wrapper matching exact audio duration (`-t "$dur"`).
 - [ ] Verbatim transcription from 00:00 to finish without omission.
+- [ ] Subagents operate in a single pass without tangent diagnostic loops.
 - [ ] Formatted strictly with `MM:SS\n발화내용\n\n`.
 - [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) for both short and long audio.
 - [ ] Intermediate chunk files cleaned up by default (or preserved only if `--keep-parts` was requested).
