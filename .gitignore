@@ -29,3 +29,7 @@ plugins/ai-skills/skills/ajou-bb/adapter/node_modules/
 
 # Claude Code local account synced skills
 synced/
+
+# Subagent-driven development workspace
+.superpowers/
+
