@@ -1,32 +1,46 @@
 # Global skill storage
 
-This repository is the canonical source for the user-managed skills used by
-Codex, Claude, and Google Antigravity on this Windows machine.
+This repository is the canonical source for user-managed skills across Codex, Claude, and Google Antigravity on Windows, macOS, and Linux.
 
-Run the following from the repository root after adding or restoring global
-skills:
+## Setup & Linking
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\link-global-skills.ps1
+Run the unified manager from the repository root:
+
+```bash
+# Link all skills to global agent directories (macOS / Linux / Windows)
+python3 script/manage.py link
+
+# On Windows PowerShell:
+python script/manage.py link
 ```
 
-The script creates directory junctions for every directory containing
-`SKILL.md` in these host locations:
+The script automatically handles filesystem differences:
+- **Windows**: Creates NTFS Directory Junctions without requiring Administrator privileges.
+- **macOS / Linux**: Creates standard POSIX symbolic links.
 
-- `%USERPROFILE%\.agents\skills`
-- `%USERPROFILE%\.claude\skills`
-- `%USERPROFILE%\.gemini\config\skills` (Antigravity IDE / Antigravity 2.0)
-- `%USERPROFILE%\.gemini\antigravity-cli\skills` (Antigravity CLI)
-- `%USERPROFILE%\.codex\skills`
+Global host locations linked:
+- `~/.gemini/config/skills` (Antigravity IDE / Antigravity 2.0)
+- `~/.gemini/antigravity-cli/skills` (Antigravity CLI)
+- `~/.claude/skills` (Claude Code)
+- `~/.codex/skills` (Codex)
+- `~/.agents/skills` (Agent Reach / OpenCLI)
+- `~/.gemini/antigravity/.agents/skills` (Antigravity Legacy mirror)
 
-For compatibility, the script also mirrors the older
-`%USERPROFILE%\.gemini\antigravity\.agents\skills` location when it exists.
+## Checking and Syncing Upstreams
 
-Skills found only in a host location are imported into this repository. When a
-host already has a same-named physical skill, the repository version becomes
-canonical and the old directory is moved to `%USERPROFILE%\.ai-skills-backup\`.
-Host-specific unmanaged directories and Codex runtime directories are left in
-place.
+```bash
+# Check if upstream skills have updates
+python3 script/manage.py check
 
-Because junctions are local filesystem metadata, they are not committed to
-Git. A fresh Windows checkout should run the script once on that machine.
+# Sync all allowlisted skills from upstream repos
+python3 script/manage.py sync
+
+# Sync specific upstream repo (e.g. ecc, hyperframes, taste-skill, superpowers, caveman)
+python3 script/manage.py sync --target ecc
+```
+
+## Running Tests
+
+```bash
+python3 script/manage.py test
+```
