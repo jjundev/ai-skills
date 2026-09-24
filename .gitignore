@@ -26,3 +26,6 @@ plugins/ai-skills/skills/ajou-bb/adapter/node_modules/
 
 # Local backup created by link-global-skills.ps1
 .global-skills-backup/
+
+# Claude Code local account synced skills
+synced/
