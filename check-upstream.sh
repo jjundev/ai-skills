@@ -90,6 +90,35 @@ try:
 except: pass" "$UPSTREAM_CM_COMMITS_JSON")
 
 # ------------------------------------------------------------------------------
+# 3. Taste Skill Check (Leonxlnx/taste-skill)
+# ------------------------------------------------------------------------------
+LOCAL_TS_COMMIT_MSG=$(run_git log --grep="sync taste-skill" -n 1 --pretty=format:"%s")
+LOCAL_TS_VERSION=$(echo "$LOCAL_TS_COMMIT_MSG" | grep -oE "v[0-9]+\.[0-9]+(\.[0-9]+)?(-[a-zA-Z0-9.]+)?") || true
+if [ -z "$LOCAL_TS_VERSION" ]; then
+  LOCAL_TS_VERSION=$(echo "$LOCAL_TS_COMMIT_MSG" | grep -oE "\([a-f0-9]{7}\)" | tr -d "()" || echo "unknown")
+fi
+LOCAL_TS_COMMIT=$(run_git log --grep="sync taste-skill" -n 1 --pretty=format:"%h (%cr)")
+
+UPSTREAM_TS_COMMITS_JSON=$(curl -s --connect-timeout 5 -H "User-Agent: ai-skills-checker" "https://api.github.com/repos/Leonxlnx/taste-skill/commits?per_page=1" 2>/dev/null || echo "[]")
+UPSTREAM_TS_HEAD_SHA=$(python3 -c "import json, sys;
+try:
+  d = json.loads(sys.argv[1]); print(d[0]['sha'][:7] if isinstance(d, list) and d else '')
+except: pass" "$UPSTREAM_TS_COMMITS_JSON")
+UPSTREAM_TS_HEAD_DATE=$(python3 -c "import json, sys;
+try:
+  d = json.loads(sys.argv[1]); print(d[0]['commit']['committer']['date'][:10] if isinstance(d, list) and d else '')
+except: pass" "$UPSTREAM_TS_COMMITS_JSON")
+UPSTREAM_TS_HEAD_MSG=$(python3 -c "import json, sys;
+try:
+  d = json.loads(sys.argv[1]); print(d[0]['commit']['message'].split('\n')[0] if isinstance(d, list) and d else '')
+except: pass" "$UPSTREAM_TS_COMMITS_JSON")
+
+TS_UP_TO_DATE=false
+if [ -n "$UPSTREAM_TS_HEAD_SHA" ] && echo "$LOCAL_TS_COMMIT_MSG" | grep -q "$UPSTREAM_TS_HEAD_SHA"; then
+  TS_UP_TO_DATE=true
+fi
+
+# ------------------------------------------------------------------------------
 # Output Results
 # ------------------------------------------------------------------------------
 if [ "$JSON_MODE" = true ]; then
@@ -109,6 +138,14 @@ result = {
     'upstream_head_sha': '$UPSTREAM_CM_HEAD_SHA',
     'upstream_head_date': '$UPSTREAM_CM_HEAD_DATE',
     'upstream_head_msg': '$UPSTREAM_CM_HEAD_MSG'
+  },
+  'taste_skill': {
+    'local_version': '$LOCAL_TS_VERSION',
+    'local_commit': '$LOCAL_TS_COMMIT',
+    'upstream_head_sha': '$UPSTREAM_TS_HEAD_SHA',
+    'upstream_head_date': '$UPSTREAM_TS_HEAD_DATE',
+    'upstream_head_msg': '$UPSTREAM_TS_HEAD_MSG',
+    'up_to_date': $([ "$TS_UP_TO_DATE" = true ] && echo "True" || echo "False")
   }
 }
 print(json.dumps(result, indent=2))"
@@ -143,11 +180,27 @@ else
   echo -e "  • 상태           : ${YELLOW}⚠️ 네트워크 상태 확인 필요${RESET}"
 fi
 
+echo ""
+echo -e "${BOLD}[3] Taste Skill${RESET} ${GRAY}(https://github.com/Leonxlnx/taste-skill)${RESET}"
+echo -e "  • 로컬 적용 버전 : ${BOLD}${LOCAL_TS_VERSION}${RESET} ${GRAY}[${LOCAL_TS_COMMIT}]${RESET}"
+if [ -n "$UPSTREAM_TS_HEAD_SHA" ]; then
+  echo -e "  • 업스트림 HEAD  : ${BOLD}${UPSTREAM_TS_HEAD_SHA}${RESET} ${GRAY}(${UPSTREAM_TS_HEAD_DATE} - ${UPSTREAM_TS_HEAD_MSG})${RESET}"
+  if [ "$TS_UP_TO_DATE" = true ]; then
+    echo -e "  • 상태           : ${GREEN}✅ 최신 동기화 유지 중${RESET}"
+  else
+    echo -e "  • 상태           : ${YELLOW}⚡ 업데이트 가능 (${LOCAL_TS_VERSION} -> ${UPSTREAM_TS_HEAD_SHA})${RESET}"
+  fi
+else
+  echo -e "  • 업스트림 HEAD  : ${YELLOW}확인 불가 (오프라인 또는 API 제한)${RESET}"
+  echo -e "  • 상태           : ${YELLOW}⚠️ 네트워크 상태 확인 필요${RESET}"
+fi
+
 echo -e "\n${BOLD}${CYAN}=====================================================${RESET}"
-if [ "$SP_UP_TO_DATE" = true ]; then
+if [ "$SP_UP_TO_DATE" = true ] && [ "$TS_UP_TO_DATE" = true ]; then
   echo -e "${GREEN}✨ 모든 핵심 스킬셋이 최신 상태입니다.${RESET}"
 else
   echo -e "💡 최신 버전을 다운로드하여 동기화하려면 다음을 실행하세요:"
-  echo -e "   ${BOLD}bash $SKILLS_DIR/sync-upstream.sh${RESET}"
+  [ "$SP_UP_TO_DATE" != true ] && echo -e "   • Superpowers/Caveman: ${BOLD}bash $SKILLS_DIR/sync-upstream.sh${RESET}"
+  [ "$TS_UP_TO_DATE" != true ] && echo -e "   • Taste Skill:         ${BOLD}bash $SKILLS_DIR/sync-taste-skill.sh${RESET}"
 fi
 echo -e "${BOLD}${CYAN}=====================================================${RESET}"
