@@ -22,7 +22,6 @@ GLOBAL_HOST_ROOTS: list[tuple[str, Path]] = [
     ("antigravity-config", USER_HOME / ".gemini" / "config" / "skills"),
     ("antigravity-cli", USER_HOME / ".gemini" / "antigravity-cli" / "skills"),
     ("claude", USER_HOME / ".claude" / "skills"),
-    ("codex", USER_HOME / ".codex" / "skills"),
     ("antigravity-legacy", USER_HOME / ".gemini" / "antigravity" / ".agents" / "skills"),
 ]
 

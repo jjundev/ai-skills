@@ -18,9 +18,10 @@ class TestConfigAndCommon(unittest.TestCase):
     def test_global_host_roots_non_empty(self):
         self.assertTrue(len(GLOBAL_HOST_ROOTS) >= 5)
         names = [name for name, _ in GLOBAL_HOST_ROOTS]
+        self.assertIn("agents", names)
         self.assertIn("claude", names)
         self.assertIn("antigravity-config", names)
-        self.assertIn("codex", names)
+        self.assertNotIn("codex", names)
 
     def test_get_backup_root(self):
         self.assertEqual(get_backup_root(), Path.home() / ".ai-skills-backup")
