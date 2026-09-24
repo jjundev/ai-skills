@@ -23,16 +23,39 @@ def parse_local_version_and_sha(msg: str) -> tuple[str, str]:
 
 
 def check_upstream(config: UpstreamConfig, repo_root: Path) -> dict:
-    _, commit_msg, _ = run_git(
-        ["log", f"--grep={config.grep_pattern}", "-n", "1", "--pretty=format:%s"],
-        cwd=repo_root,
-    )
-    _, commit_summary, _ = run_git(
-        ["log", f"--grep={config.grep_pattern}", "-n", "1", "--pretty=format:%h (%cr)"],
+    _, log_output, _ = run_git(
+        ["log", f"--grep={config.grep_pattern}", "-n", "10", "--pretty=format:%h|%cr|%s"],
         cwd=repo_root,
     )
 
-    local_version, local_sha = parse_local_version_and_sha(commit_msg)
+    commit_msg = ""
+    commit_summary = ""
+    local_version = "unknown"
+    local_sha = "unknown"
+
+    if log_output:
+        lines = [line.strip() for line in log_output.splitlines() if line.strip()]
+        for line in lines:
+            parts = line.split("|", 2)
+            if len(parts) == 3:
+                h, cr, s = parts
+            else:
+                h, cr, s = parts[0], "", parts[-1]
+            ver, sha = parse_local_version_and_sha(s)
+            if ver != "unknown" or sha != "unknown":
+                commit_msg = s
+                commit_summary = f"{h} ({cr})" if cr else h
+                local_version = ver
+                local_sha = sha
+                break
+        if not commit_msg and lines:
+            parts = lines[0].split("|", 2)
+            h = parts[0]
+            cr = parts[1] if len(parts) > 1 else ""
+            commit_msg = parts[-1]
+            commit_summary = f"{h} ({cr})" if cr else h
+            local_version, local_sha = parse_local_version_and_sha(commit_msg)
+
 
     upstream_release = ""
     if config.release_api_url:
