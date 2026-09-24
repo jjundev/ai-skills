@@ -107,6 +107,12 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
         if not host_path.is_dir():
             continue
 
+        try:
+            if host_path.resolve() == repo_root.resolve():
+                continue
+        except Exception:
+            pass
+
         print(f"\nScanning {root_name}: {host_path}")
         for entry in list(host_path.iterdir()):
             if root_name == "codex" and entry.name in {".system", "codex-primary-runtime"}:
@@ -116,6 +122,12 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
             if not is_skill_directory(entry):
                 print(Color.gray(f"  keep unmanaged directory: {entry.name}"))
                 continue
+
+            try:
+                if entry.resolve().is_relative_to(repo_root.resolve()):
+                    continue
+            except Exception:
+                pass
 
             if entry.name in managed_skills:
                 continue
@@ -132,6 +144,13 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
 
     # 2. Expose every managed skill in each global store
     for root_name, host_path in GLOBAL_HOST_ROOTS:
+        try:
+            if host_path.exists() and host_path.resolve() == repo_root.resolve():
+                print(Color.green(f"\n{root_name} ({host_path}) is already directly linked to repository root."))
+                continue
+        except Exception:
+            pass
+
         if not dry_run:
             host_path.mkdir(parents=True, exist_ok=True)
         print(f"\nLinking skills into {root_name} ({host_path})")
@@ -139,6 +158,12 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
         for skill_name, skill_path in sorted(managed_skills.items()):
             link_target = host_path / skill_name
             if link_target.exists() or is_link(link_target):
+                try:
+                    if link_target.resolve() == skill_path.resolve():
+                        continue
+                except Exception:
+                    pass
+
                 if is_link(link_target):
                     if not dry_run:
                         remove_link_or_dir(link_target)
@@ -152,6 +177,7 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
             if not dry_run:
                 create_link(skill_path, link_target)
             print(f"  • Linked {skill_name}")
+
 
     print(Color.green(f"\n✨ Done. Global skill stores now reference: {repo_root}"))
     print(Color.gray(f"Backups (when replacements were needed): {backup_root}"))
