@@ -9,8 +9,8 @@ import urllib.error
 
 def get_repo_root() -> Path:
     current = Path(__file__).resolve()
-    for parent in [current.parent] + list(current.parents):
-        if (parent / ".git").is_dir() or (parent / "GLOBAL-SKILLS.md").is_file():
+    for parent in current.parents:
+        if (parent / ".git").exists() or (parent / "GLOBAL-SKILLS.md").is_file():
             return parent
     return current.parent.parent
 
@@ -24,6 +24,8 @@ def run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         env=env,
     )
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
@@ -32,19 +34,26 @@ def run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
 def fetch_github_json(url: str, timeout: int = 5) -> dict | list | None:
     if not url:
         return None
+    headers = {"User-Agent": "ai-skills-manager"}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "ai-skills-manager"},
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+            return json.loads(response.read())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError, OSError):
         return None
 
 
 class Color:
-    ENABLED = sys.stdout.isatty() or os.environ.get("FORCE_COLOR") == "1"
+    ENABLED = (
+        "NO_COLOR" not in os.environ
+        and (sys.stdout.isatty() or os.environ.get("FORCE_COLOR") == "1")
+    )
 
     @classmethod
     def wrap(cls, text: str, code: str) -> str:
