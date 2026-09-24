@@ -119,6 +119,12 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
                 print(Color.gray(f"  keep runtime directory: {entry.name}"))
                 continue
 
+            if is_link(entry) and not entry.exists():
+                if not dry_run:
+                    remove_link_or_dir(entry)
+                print(Color.gray(f"  clean broken link: {entry.name}"))
+                continue
+
             if not is_skill_directory(entry):
                 print(Color.gray(f"  keep unmanaged directory: {entry.name}"))
                 continue
