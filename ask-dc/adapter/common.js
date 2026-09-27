@@ -1,76 +1,39 @@
-import { ArgumentError, AuthRequiredError, CommandExecutionError } from '@jackwener/opencli/errors';
+import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
+import * as http from './http.js';
 
-export const DCINSIDE_ORIGIN = 'https://gall.dcinside.com';
-const GALLERY_ID = /^[A-Za-z0-9_]{1,64}$/;
+export const DCINSIDE_ORIGIN = http.DCINSIDE_ORIGIN;
 
-function isDcinsideLoginRedirect(location) {
-    try {
-        const url = new URL(location);
-        const isDcinsideHost = url.hostname === 'dcinside.com' || url.hostname.endsWith('.dcinside.com');
-        const isLoginHost = url.hostname === 'login.dcinside.com' || url.hostname === 'sign.dcinside.com';
-        const isLoginPath = /^\/(?:member\/)?login(?:\/|$)/i.test(url.pathname);
-        return isDcinsideHost && (isLoginHost || isLoginPath);
-    } catch {
-        return false;
+// Maps the transport-neutral DcError from http.js onto OpenCLI's error classes.
+export function toOpencliError(error, command) {
+    if (!(error instanceof http.DcError)) return error;
+    switch (error.code) {
+        case 'ARG': return new ArgumentError(error.message);
+        case 'EMPTY': return new EmptyResultError(command, error.message);
+        case 'AUTH': return new AuthRequiredError('gall.dcinside.com', error.message);
+        default: return new CommandExecutionError(error.message);
     }
 }
 
 export function requireGalleryId(value) {
-    let galleryId = String(value ?? '').trim();
-    if (galleryId === 'ibook') {
-        galleryId = 'macbook';
+    try {
+        return http.requireGalleryId(value);
+    } catch (error) {
+        throw toOpencliError(error);
     }
-    if (!GALLERY_ID.test(galleryId)) {
-        throw new ArgumentError('galleryId must contain 1-64 letters, digits, or underscores');
-    }
-    return galleryId;
 }
 
 export function requireBoundedInteger(value, defaultValue, minimum, maximum, label) {
-    const resolved = value ?? defaultValue;
-    const number = Number(resolved);
-    if (!Number.isInteger(number)) throw new ArgumentError(`${label} must be an integer`);
-    if (number < minimum || number > maximum) {
-        throw new ArgumentError(`${label} must be between ${minimum} and ${maximum}`);
+    try {
+        return http.requireBoundedInteger(value, defaultValue, minimum, maximum, label);
+    } catch (error) {
+        throw toOpencliError(error);
     }
-    return number;
-}
-
-export function mainGalleryListUrl(galleryId, page, { head, recommend, sort, search, searchType = 'search_subject_memo', isMinor = false } = {}) {
-    const id = encodeURIComponent(requireGalleryId(galleryId));
-    const prefix = isMinor ? '/mgallery/board/lists/' : '/board/lists/';
-    let url = `${DCINSIDE_ORIGIN}${prefix}?id=${id}&page=${page}`;
-    if (head) url += `&search_head=${encodeURIComponent(head)}`;
-    if (recommend) url += `&exception_mode=recommend`;
-    if (sort) url += `&sort_type=${encodeURIComponent(sort)}`;
-    if (search) url += `&s_type=${encodeURIComponent(searchType)}&s_keyword=${encodeURIComponent(search)}`;
-    return url;
 }
 
 export function mainGalleryWriteUrl(galleryId, { isMinor = false } = {}) {
     const id = encodeURIComponent(requireGalleryId(galleryId));
     const prefix = isMinor ? '/mgallery/board/write/' : '/board/write/';
     return `${DCINSIDE_ORIGIN}${prefix}?id=${id}`;
-}
-
-export function canonicalPostUrl(value) {
-    let input;
-    try {
-        input = new URL(String(value ?? '').trim());
-    } catch {
-        throw new ArgumentError('postUrl must be a complete DCInside post URL');
-    }
-
-    let galleryId = '';
-    let postId = '';
-    if (input.hostname === 'gall.dcinside.com' && (input.pathname === '/board/view/' || input.pathname === '/mgallery/board/view/' || input.pathname.endsWith('/board/view/'))) {
-        galleryId = input.searchParams.get('id') ?? '';
-        postId = input.searchParams.get('no') ?? '';
-    }
-
-    requireGalleryId(galleryId);
-    if (!/^[0-9]+$/.test(postId)) throw new ArgumentError('postUrl must contain a numeric post number');
-    return `${DCINSIDE_ORIGIN}/mgallery/board/view/?id=${encodeURIComponent(galleryId)}&no=${postId}`;
 }
 
 export async function navigateToDcinside(page, url, label, { checkAuth = true } = {}) {
@@ -91,7 +54,13 @@ export async function navigateToDcinside(page, url, label, { checkAuth = true } 
     } catch (error) {
         throw new CommandExecutionError(`${label} page inspection failed: ${error?.message ?? error}`);
     }
-    if (isDcinsideLoginRedirect(location) || hasLoginForm) {
+    let isLoginRedirect = false;
+    try {
+        isLoginRedirect = http.isLoginUrl(new URL(location));
+    } catch {
+        isLoginRedirect = false;
+    }
+    if (isLoginRedirect || hasLoginForm) {
         throw new AuthRequiredError('gall.dcinside.com', 'Log in manually in the connected Chrome profile, then retry');
     }
 }

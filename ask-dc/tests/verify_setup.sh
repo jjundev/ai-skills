@@ -7,26 +7,35 @@ ADAPTER_DIR="${SKILL_DIR}/adapter"
 
 echo "Running DCInside adapter verification tests..."
 
-# Test 1: Check adapter files exist
-for f in common.js parser.js list.js read.js write.js; do
-    if [ ! -f "${ADAPTER_DIR}/${f}" ]; then
-        echo "FAIL: Missing file ${ADAPTER_DIR}/${f}" >&2
+# Test 1: Check adapter and CLI files exist
+for f in adapter/http.js adapter/common.js adapter/list.js adapter/read.js adapter/write.js scripts/dc.mjs; do
+    if [ ! -f "${SKILL_DIR}/${f}" ]; then
+        echo "FAIL: Missing file ${SKILL_DIR}/${f}" >&2
         exit 1
     fi
 done
-echo "PASS: All 5 adapter JS files exist."
+echo "PASS: Adapter and CLI files exist."
 
-# Test 2: Check ESM module resolution from inside the adapter directory
+# Test 2: The HTTP core and standalone CLI must load without OpenCLI
 node -e "
-import('${ADAPTER_DIR}/common.js').then(() => {
-    console.log('PASS: common.js ESM resolution succeeded');
+import('${ADAPTER_DIR}/http.js').then(() => {
+    console.log('PASS: http.js loads without OpenCLI');
 }).catch(err => {
-    console.error('FAIL: common.js ESM resolution failed:', err);
+    console.error('FAIL: http.js failed to load:', err);
     process.exit(1);
 });
 "
+set +e
+node "${SKILL_DIR}/scripts/dc.mjs" >/dev/null 2>&1
+code=$?
+set -e
+if [ "$code" -ne 2 ]; then
+    echo "FAIL: dc.mjs without arguments should exit 2 (usage), got ${code}" >&2
+    exit 1
+fi
+echo "PASS: dc.mjs prints usage and exits 2."
 
-# Test 3: Check OpenCLI subcommands
+# Test 3: Check OpenCLI subcommands (write-dc still depends on them)
 output=$(opencli dcinside --help)
 if echo "$output" | grep -q "list" && echo "$output" | grep -q "read" && echo "$output" | grep -q "write"; then
     echo "PASS: opencli dcinside exposes list, read, and write subcommands."
