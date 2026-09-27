@@ -1,32 +1,84 @@
 {
-  "general-gallery-list-ui": {
-    "url": "https://gall.dcinside.com/board/lists",
+  "gallery-list": {
+    "url": "https://gall.dcinside.com/{,mgallery/,mini/}board/lists/",
     "method": "GET",
     "params": {
-      "required": ["id"],
-      "optional": ["page"]
+      "required": [
+        "id"
+      ],
+      "optional": [
+        "page",
+        "search_head",
+        "exception_mode=recommend",
+        "sort_type",
+        "s_type",
+        "s_keyword"
+      ]
     },
-    "response": "Rendered HTML table .gall_list tbody tr.ub-content",
-    "verified_at": "2026-08-15",
-    "notes": "UI strategy only; no internal API replay. General galleries only."
+    "response": "Server-rendered HTML; rows are <tr class=\"ub-content ...\"> inside .gall_list",
+    "verified_at": "2026-09-27",
+    "notes": "Minor galleries on the general path answer 200 with a tiny <script>location.replace(...)</script> that drops the query string; mini galleries answer 404 on the general path. Search scans only the newest block of posts (search_pos pages further back; not used)."
   },
-  "general-gallery-post-ui": {
-    "url": "https://gall.dcinside.com/board/view/",
+  "gallery-post": {
+    "url": "https://gall.dcinside.com/{,mgallery/,mini/}board/view/",
     "method": "GET",
     "params": {
-      "required": ["id", "no"],
+      "required": [
+        "id",
+        "no"
+      ],
       "optional": []
     },
-    "response": "Rendered HTML .gallview_head, .writing_view_box .write_div, and .comment_box",
-    "verified_at": "2026-08-15",
-    "notes": "Comments and replies are read only if already rendered in the page UI."
+    "response": "Server-rendered HTML: .gallview_head, .write_div, hidden inputs e_s_n_o and _GALLTYPE_ (G | M | MI). Comments are NOT in this HTML.",
+    "verified_at": "2026-09-27",
+    "notes": "Missing posts return 404."
+  },
+  "post-comments": {
+    "url": "https://gall.dcinside.com/board/comment/",
+    "method": "POST",
+    "params": {
+      "required": [
+        "id",
+        "no",
+        "cmt_id",
+        "cmt_no",
+        "e_s_n_o",
+        "comment_page",
+        "_GALLTYPE_"
+      ],
+      "optional": [
+        "sort",
+        "focus_cno",
+        "focus_pno",
+        "prevCnt",
+        "board_type"
+      ]
+    },
+    "headers": [
+      "X-Requested-With: XMLHttpRequest",
+      "Referer: <view url>"
+    ],
+    "response": "JSON {total_cnt, comments:[{no, name, memo(html), reg_date, depth, c_no, nicktype, del_yn}], pagination}",
+    "verified_at": "2026-09-27",
+    "notes": "Same endpoint for all gallery types. Without e_s_n_o the body is '정상적인 접근이 아닙니다.'. The token is not post-bound. ~100 comments per page. Rows with nicktype COMMENT_BOY / no 0 are ads; del_yn Y are deleted."
   },
   "general-gallery-post-write": {
     "url": "https://gall.dcinside.com/board/write/",
     "method": "POST",
     "params": {
-      "required": ["id", "title", "content"],
-      "optional": ["name", "password", "head", "mgallery", "no-submit", "wait-timeout"]
+      "required": [
+        "id",
+        "title",
+        "content"
+      ],
+      "optional": [
+        "name",
+        "password",
+        "head",
+        "mgallery",
+        "no-submit",
+        "wait-timeout"
+      ]
     },
     "response": "Redirect to https://gall.dcinside.com/board/view/?id=...&no=...",
     "verified_at": "2026-09-07",

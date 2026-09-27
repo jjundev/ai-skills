@@ -10,39 +10,38 @@ description: >
 
 # ask-dc — 디시인사이드 실시간 여론 및 심층 검색 분석기
 
-디시인사이드 로컬 OpenCLI 어댑터(`opencli dcinside`)를 활용하여 제품 실사용 평가·구매 가이드부터 갤러리별 실시간 화제/떡밥, 게임/이슈 여론, 특정 키워드 심층 검색까지 디시 유저들의 가감 없는 날것의 반응과 실제 댓글을 수집하고 분석합니다.
+디시인사이드 HTTPS 수집기(`scripts/dc.mjs`)를 활용하여 제품 실사용 평가·구매 가이드부터 갤러리별 실시간 화제/떡밥, 게임/이슈 여론, 특정 키워드 심층 검색까지 디시 유저들의 가감 없는 날것의 반응과 실제 댓글을 수집하고 분석합니다.
 
 ## 엄격 원칙 (Ground Rules)
 
 1. **순수 디시인사이드 단독 조사**: 타 커뮤니티나 블로그 글을 절대 섞지 않습니다. 디시 내 검색 결과가 없을 경우 외부 검색으로 우회하지 않고 **"디시인사이드 내 언급 없음"**으로 즉시 결론짓고 조사를 종료합니다.
-2. **OpenCLI 어댑터 최우선 사용**: `opencli dcinside list <galleryId>` 및 `opencli dcinside read "<postUrl>"`을 기본 수집 도구로 사용합니다.
+2. **HTTPS 수집기 사용**: `node <skill-dir>/scripts/dc.mjs list <galleryId>` 및 `node <skill-dir>/scripts/dc.mjs read "<postUrl>"`을 기본 수집 도구로 사용합니다. 브라우저·OpenCLI가 필요 없습니다.
 3. **개념글 우선 탐색 원칙 (모드 B)**: 일반 토픽 및 이슈 브리핑 시 유저들의 검증과 추천을 받은 개념글(`--recommend`)을 1차 우선 탐색하고, 데이터가 부족할 때(3건 미만) 일반 글을 보조로 수집합니다.
 4. **가감 없는 날것의 여론 보존**: 디시 특유의 비판적 시각, 솔직한 반응, 현실적인 여론을 누락 없이 반영하되 원색적인 욕설은 자연스럽게 순화합니다.
 5. **대표 댓글 인용 필수**: 보고서에 디시 유저들의 실제 댓글 3~5개(Real Voice)를 인용(욕설 순화)하여 생생한 현장감을 제공합니다.
 
 ---
 
-## 0. 사전 점검 및 환경 설정 (Setup & Self-Healing)
+## 0. 실행 환경 (Setup)
 
-본 스킬(`ask-dc`) 및 `write-dc` 스킬은 로컬 OpenCLI DCInside 어댑터(`opencli dcinside`)를 백엔드로 사용합니다.
-어댑터 소스 코드는 형상 관리 및 단일 진실 공급원(SSOT) 유지를 위해 **`ask-dc/adapter/`**에 위치하며, OpenCLI 디렉토리(`~/.opencli/clis/dcinside`)로 심볼릭 링크되어 구동됩니다.
+본 스킬의 조회 기능은 Node.js 내장 `fetch`로 `gall.dcinside.com`에 HTTPS 요청을 보내는 독립 CLI(`scripts/dc.mjs`)로 동작합니다. 브라우저, Chrome 연결, OpenCLI 설치가 **필요 없습니다**.
 
-### 환경 진단 및 자동 복구 (Self-Healing)
-`opencli dcinside` 명령어가 없거나 모듈 오류가 발생할 경우 다음 절차에 따라 복구합니다:
+- **요구 사항**: Node.js 18 이상 (`node -v`)
+- **실행 경로**: 아래 명령의 `<skill-dir>`는 이 스킬의 Base directory입니다 (예: `~/.claude/skills/ask-dc`).
+- **출력**: 성공 시 stdout에 JSON 배열. 실패 시 stderr에 `{"error":{"code","message"}}`를 출력하고 아래 종료 코드로 끝납니다.
 
-1. **사전 필수 요구사항 확인**:
-   - Node.js (v20 이상): `node -v`
-   - OpenCLI 전역 CLI: `command -v opencli` (미설치 시 `npm install -g @jackwener/opencli`)
+| 종료 코드 | code | 의미 | 대응 |
+| :--- | :--- | :--- | :--- |
+| 0 | - | 성공 | - |
+| 2 | `ARG` | 인자 오류 | 명령을 고쳐 다시 실행 |
+| 3 | `EMPTY` | 결과 0건 | Step 3의 검색어 완화 / 일반 글 보조 수집 규칙 적용 |
+| 4 | `NOT_FOUND` | 갤러리·게시글 없음(삭제 포함) | 갤러리 ID 재확인, 삭제된 글은 제외 |
+| 5 | `AUTH` / `BLOCKED` | 로그인 필요 또는 비정상 응답 | 잠시 후 1회 재시도, 계속되면 해당 글 제외 |
+| 1 | `NETWORK` | 네트워크 오류 | 1회 재시도 |
 
-2. **자동 복구 및 설정 스크립트 실행**:
-   ```bash
-   bash ~/.ai-skills/ask-dc/scripts/setup.sh
-   ```
-   이 스크립트는 다음 작업을 자동으로 처리합니다:
-   - Node.js 및 OpenCLI 설치 상태 검사
-   - ESM 모듈 해석 심(`adapter/node_modules/@jackwener/opencli`) 구성
-   - `~/.opencli/clis/dcinside` -> `~/.ai-skills/ask-dc/adapter` 심볼릭 링크 연결
-   - `opencli dcinside --help` 실행을 통한 정상 작동 검증
+- **갤러리 유형 자동 판별**: 일반·마이너·미니 갤러리를 자동으로 판별합니다. `--mgallery` / `--mini`는 요청 1회를 아끼는 선택적 힌트입니다.
+- `opencli dcinside list/read`도 같은 HTTPS 코어로 동작합니다(agent-reach 호환). 브라우저와 `scripts/setup.sh`가 필요한 것은 `write-dc`의 글쓰기(`opencli dcinside write`)뿐입니다.
+- 동작 확인: `node --test <skill-dir>/tests/*.test.mjs` (오프라인), `bash <skill-dir>/tests/smoke.sh` (실제 사이트)
 
 ---
 
@@ -72,7 +71,7 @@ description: >
 curl -s "https://search.dcinside.com/combine/q/<키워드>" | grep -o 'https://gall.dcinside.com/[^"]*' | head -n 10
 ```
 - **마이너 갤러리 자동 판별 규칙**:
-  - 검색 결과 링크에 `/mgallery/` 경로가 포함된 경우(예: `https://gall.dcinside.com/mgallery/board/view/?id=<galleryId>...`) -> **마이너 갤러리**이므로 `opencli dcinside list` 실행 시 반드시 `--mgallery` 플래그를 추가합니다.
+  - 검색 결과 링크에 `/mgallery/` 경로가 포함된 경우(예: `https://gall.dcinside.com/mgallery/board/view/?id=<galleryId>...`) -> **마이너 갤러리**입니다. 자동 판별되므로 `--mgallery`는 선택 사항이지만, 알고 있으면 붙여 요청 1회를 아낍니다. (`/mini/` 경로는 미니 갤러리, `--mini`)
   - 검색 결과 링크가 `https://gall.dcinside.com/board/view/?id=<galleryId>...`인 경우 -> **일반 갤러리**이므로 별도 플래그 없이 호출합니다.
 
 ---
@@ -99,11 +98,8 @@ curl -s "https://search.dcinside.com/combine/q/<키워드>" | grep -o 'https://g
 
 #### [모드 A 실행 명령 (키워드 검색)]
 ```bash
-# 일반 갤러리
-opencli dcinside list <galleryId> --search "<키워드>" --limit 20 -f yaml
-
-# 마이너 갤러리 (--mgallery 추가)
-opencli dcinside list <galleryId> --search "<키워드>" --mgallery --limit 20 -f yaml
+# 일반·마이너·미니 모두 동일 (갤러리 유형 자동 판별, --mgallery/--mini는 선택 힌트)
+node <skill-dir>/scripts/dc.mjs list <galleryId> --search "<키워드>" --limit 20
 ```
 * 검색 결과가 0건이면 검색어를 더 넓은 상위 단어(시리즈명, 브랜드명 등)로 완화하여 1회 재시도합니다.
 
@@ -111,13 +107,13 @@ opencli dcinside list <galleryId> --search "<키워드>" --mgallery --limit 20 -
 화제성과 신뢰도가 높은 글을 우선 파악하기 위해 **개념글(`--recommend`) 1차 탐색**을 기본으로 적용합니다:
 ```bash
 # 1차 시도: 개념글 우선 탐색
-opencli dcinside list <galleryId> --search "<키워드>" [--mgallery] --recommend --limit 20 -f yaml
+node <skill-dir>/scripts/dc.mjs list <galleryId> --search "<키워드>" --recommend --limit 20
 ```
 * **결과 판정 및 일반 글 보조 수집**:
   - 개념글 검색 결과가 **3건 이상**인 경우: 개념글 데이터를 메인으로 활용합니다.
   - 개념글 검색 결과가 **3건 미만**인 경우: `--recommend`를 뺀 일반 검색 목록을 추가 수집하여 보조 데이터로 확보합니다:
     ```bash
-    opencli dcinside list <galleryId> --search "<키워드>" [--mgallery] --limit 20 -f yaml
+    node <skill-dir>/scripts/dc.mjs list <galleryId> --search "<키워드>" --limit 20
     ```
 
 #### 공통 종료 판정
@@ -126,9 +122,9 @@ opencli dcinside list <galleryId> --search "<키워드>" [--mgallery] --recommen
 ### Step 4: 핵심 게시글 선별 및 상세 본문/댓글 수집
 수집된 글 목록 중 조회수, 추천수(개추), 댓글 수가 활발한 글 **3~5개**를 선별하여 상세 내용을 읽습니다:
 ```bash
-opencli dcinside read "<postUrl>" --comment-limit 20 -f yaml
+node <skill-dir>/scripts/dc.mjs read "<postUrl>" --comment-limit 20
 ```
-* **주의**: `opencli dcinside read`에는 반드시 전체 URL(`https://gall.dcinside.com/...`)을 전달해야 합니다.
+* **주의**: `read`에는 목록 결과의 `url` 필드(전체 URL `https://gall.dcinside.com/...`)를 그대로 전달합니다. 댓글이 50개를 넘는 글도 `--comment-limit`(최대 50)까지 자동으로 여러 페이지를 수집합니다.
 * 본문 요약뿐만 아니라 **댓글/대댓글에서 교차 검증되는 실사용자들의 진짜 반응과 대표 댓글**을 중점적으로 추출합니다.
 
 ### Step 5: 디시 특화 뉘앙스 해석 및 정제

@@ -22,3 +22,10 @@
   - `--no-submit` flag allows dry-run form filling for manual review prior to submission.
   - `--wait-timeout` (default: 30s) polls for navigation to the submitted post view URL (`/board/view/` or `/mgallery/board/view/`).
 
+
+## 2026-09-27
+
+- Strategy for `list`/`read` is now `PUBLIC` (`browser: false`): both are plain HTTPS requests handled by `adapter/http.js`, shared with the standalone CLI `scripts/dc.mjs`. `write` stays `UI`.
+- List and post pages are server-rendered; comments come from `POST /board/comment/` (JSON) using the `e_s_n_o` and `_GALLTYPE_` hidden inputs from the post page. See `endpoints.json`.
+- Gallery type detection: minor galleries JS-redirect (`location.replace`, query dropped) from the general path; mini galleries 404 there, so the core retries `/mini/` once on 404.
+- Requests are sequential with a 300 ms gap and one retry on 429/5xx/network errors. 40 requests at 8-way concurrency all returned 200 during probing.
