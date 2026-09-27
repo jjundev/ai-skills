@@ -12,6 +12,7 @@ for (const [label, args] of [
     ['unknown option', ['list', 'shaving', '--bogus']],
     ['missing gallery', ['list']],
     ['limit out of range', ['list', 'shaving', '--limit', '99']],
+    ['conflicting type hints', ['list', 'shaving', '--mgallery', '--mini']],
     ['bad post url', ['read', 'https://example.com/']],
 ]) {
     test(`argument error exits 2: ${label}`, () => {

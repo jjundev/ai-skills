@@ -170,7 +170,8 @@ export function parseListHtml(html, { includeNotices = false } = {}) {
             title: htmlToText(anchor[2]),
             author: (writer && attr(writer.tag, 'data-nick')) ?? htmlToText(writer?.inner),
             publishedAt: (date && attr(date.tag, 'title')) ?? htmlToText(date?.inner),
-            commentCount: integerOrNull(replyNum?.[1]) ?? 0,
+            // "[12/3]" = comments / voice replies; only the first number is the comment count.
+            commentCount: integerOrNull(replyNum?.[1].match(/[0-9][0-9,]*/)?.[0]) ?? 0,
             viewCount: integerOrNull(htmlToText(cell(rowHtml, 'gall_count')?.inner)),
             recommendCount: integerOrNull(htmlToText(cell(rowHtml, 'gall_recommend')?.inner)),
             isNotice,
@@ -260,7 +261,7 @@ export async function getPage(url) {
             const jsTarget = jsRedirectTarget(response.body);
             if (jsTarget) next = isLoginUrl(jsTarget) ? jsTarget : new URL(`${jsTarget.pathname}${target.search}`, DCINSIDE_ORIGIN);
         }
-        if (!next) return { url: target, status: response.status, body: response.body };
+        if (!next) return { url: target, status: response.status, body: response.body, redirected: hop > 0 };
         if (isLoginUrl(next)) throw new DcError('AUTH', `DCInside requires login for ${url}`);
         target = next;
     }
@@ -268,10 +269,13 @@ export async function getPage(url) {
 }
 
 // Minor galleries JS-redirect from the general path, but mini galleries answer 404 there.
+// Only an un-redirected general-path 404 may be a mini gallery; if /mini/ also 404s,
+// report the original response so errors name the path that was asked for.
 async function getGalleryPage(buildUrl, galleryType) {
     const response = await getPage(buildUrl(galleryType));
-    if (response.status === 404 && galleryType === 'G') return getPage(buildUrl('MI'));
-    return response;
+    if (response.status !== 404 || galleryType !== 'G' || response.redirected) return response;
+    const mini = await getPage(buildUrl('MI'));
+    return mini.status === 404 ? response : mini;
 }
 
 export async function fetchCommentPage({ galleryId, postId, gallType, esno, referer, page }) {
@@ -331,12 +335,18 @@ export async function readPost(postUrl, options = {}) {
             galleryId, postId, gallType: view.gallType || galleryTypeFromPath(response.url.pathname),
             esno: view.esno, referer: url, page,
         });
-        let added = 0;
+        // Count unseen raw ids (deleted ones included) so a page of only deleted
+        // comments does not end paging early; ads carry no id and never count.
+        let fresh = 0;
         for (const raw of Array.isArray(data?.comments) ? data.comments : []) {
+            const rawId = String(raw?.no ?? '');
+            if (/^[1-9][0-9]*$/.test(rawId)) {
+                if (seen.has(rawId)) continue;
+                seen.add(rawId);
+                fresh += 1;
+            }
             const comment = normalizeComment(raw);
-            if (!comment || seen.has(comment.commentId)) continue;
-            seen.add(comment.commentId);
-            added += 1;
+            if (!comment) continue;
             rows.push({
                 type: comment.type, postId, parentId: comment.parentId, author: comment.author,
                 publishedAt: comment.publishedAt, title: '', content: truncate(comment.content),
@@ -344,7 +354,7 @@ export async function readPost(postUrl, options = {}) {
             });
             if (rows.length - 1 >= commentLimit) break;
         }
-        if (added === 0) break;
+        if (fresh === 0) break;
     }
     return rows;
 }

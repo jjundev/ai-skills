@@ -41,6 +41,7 @@ function parse(args, options) {
 async function run([command, ...args]) {
     if (command === 'list') {
         const { values, target } = parse(args, LIST_OPTIONS);
+        if (values.mgallery && values.mini) throw new DcError('ARG', '--mgallery and --mini are mutually exclusive');
         return listGallery(target, {
             search: values.search,
             searchType: values['search-type'],

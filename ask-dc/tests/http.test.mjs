@@ -83,7 +83,7 @@ test('parseListHtml skips survey + notice rows and parses post rows', () => {
         publishedAt: '2026-09-27 17:38:15', commentCount: 0, viewCount: 23, recommendCount: 0,
         isNotice: false, url: 'https://gall.dcinside.com/board/view/?id=shaving&no=40288',
     });
-    assert.equal(rows[1].commentCount, 21); // "[2/1]" -> digits only, same as the old DOM parser
+    assert.equal(rows[1].commentCount, 2); // "[2/1]" = 2 comments / 1 voice reply
     assert.equal(rows[1].viewCount, 1035);
 });
 
@@ -217,4 +217,36 @@ test('readPost maps missing posts to NOT_FOUND and non-JSON comments to BLOCKED'
         [() => true, { body: fixture('view-general.html') }],
     ]);
     await assert.rejects(dc.readPost('https://gall.dcinside.com/board/view/?id=shaving&no=39837'), { code: 'BLOCKED' });
+});
+
+test('readPost does not report a missing general post under /mini/', async () => {
+    stubFetch([[() => true, { status: 404, body: 'gone' }]]);
+    await assert.rejects(
+        dc.readPost('https://gall.dcinside.com/board/view/?id=shaving&no=99999999'),
+        { code: 'NOT_FOUND', message: /\/board\/view\/\?id=shaving&no=99999999$/ },
+    );
+    assert.deepEqual(calls.map((c) => new URL(c.url).pathname), ['/board/view/', '/mini/board/view/']);
+});
+
+test('readPost skips the /mini/ retry after a minor-gallery redirect 404s', async () => {
+    stubFetch([
+        [(u) => u.startsWith('https://gall.dcinside.com/board/view/'), { body: '<script>location.replace("https://gall.dcinside.com/mgallery/board/view?id=laptop&no=1");</script>' }],
+        [() => true, { status: 404, body: 'gone' }],
+    ]);
+    await assert.rejects(dc.readPost('https://gall.dcinside.com/board/view/?id=laptop&no=1'), { code: 'NOT_FOUND', message: /\/mgallery\// });
+    assert.equal(calls.length, 2);
+});
+
+test('readPost keeps paging past a page of only deleted comments and ads', async () => {
+    const { comments } = JSON.parse(fixture('comments.json'));
+    const page1 = { comments: comments.filter((c) => c.del_yn === 'Y' || c.nicktype === 'COMMENT_BOY') };
+    const page2 = { comments: comments.slice(0, 2) };
+    stubFetch([
+        [(u, i) => i.method === 'POST' && String(i.body).includes('comment_page=1'), { body: JSON.stringify(page1) }],
+        [(u, i) => i.method === 'POST' && String(i.body).includes('comment_page=2'), { body: JSON.stringify(page2) }],
+        [(u, i) => i.method === 'POST', { body: JSON.stringify({ comments: [] }) }],
+        [() => true, { body: fixture('view-general.html') }],
+    ]);
+    const rows = await dc.readPost('https://gall.dcinside.com/board/view/?id=shaving&no=39837', { commentLimit: 10 });
+    assert.deepEqual(rows.slice(1).map((r) => r.author), ['면갤러1', 'ㅇㅇ']);
 });
