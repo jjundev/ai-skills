@@ -61,7 +61,14 @@ def create_link(target: Path, link_path: Path) -> None:
         remove_link_or_dir(link_path)
 
     if sys.platform == "win32":
-        # Create NTFS Directory Junction without requiring Administrator rights
+        # Prefer standard symbolic links first so Go 1.23+ (Antigravity) recognizes ModeSymlink
+        try:
+            os.symlink(str(target), str(link_path), target_is_directory=True)
+            return
+        except OSError:
+            pass
+
+        # Fallback to NTFS Directory Junction when symlink privileges / Developer Mode are unavailable
         try:
             import _winapi  # type: ignore
 
@@ -73,8 +80,7 @@ def create_link(target: Path, link_path: Path) -> None:
         cmd = ["cmd", "/c", "mklink", "/J", str(link_path), str(target)]
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
-            # Fallback to os.symlink
-            os.symlink(str(target), str(link_path), target_is_directory=True)
+            raise OSError(f"Failed to create link at {link_path}: {res.stderr.strip()}")
     else:
         os.symlink(str(target), str(link_path), target_is_directory=True)
 
@@ -165,7 +171,7 @@ def link_skills(repo_root: Path, backup_root: Path, dry_run: bool = False) -> in
             link_target = host_path / skill_name
             if link_target.exists() or is_link(link_target):
                 try:
-                    if link_target.resolve() == skill_path.resolve():
+                    if link_target.is_symlink() and link_target.resolve() == skill_path.resolve():
                         continue
                 except Exception:
                     pass

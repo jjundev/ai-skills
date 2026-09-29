@@ -15,7 +15,7 @@ python script/manage.py link
 ```
 
 The script automatically handles filesystem differences:
-- **Windows**: Creates NTFS Directory Junctions without requiring Administrator privileges.
+- **Windows**: Creates standard symbolic links (`os.symlink`) first for Go 1.23+ / Antigravity compatibility, falling back to NTFS Directory Junctions if symlink privileges are unavailable.
 - **macOS / Linux**: Creates standard POSIX symbolic links.
 
 Global host locations linked:

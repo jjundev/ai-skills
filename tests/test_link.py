@@ -202,21 +202,32 @@ class TestLink(unittest.TestCase):
         with patch("sys.platform", "win32"):
             self.assertFalse(is_link(mock_path))
 
-    def test_create_link_windows_winapi(self):
+    def test_create_link_windows_prefers_symlink(self):
+        target = self.repo_root / "skill-1"
+        link_path = self.host_root / "symlink-first"
+
+        with patch("sys.platform", "win32"), \
+             patch("os.symlink") as mock_symlink:
+            create_link(target, link_path)
+            mock_symlink.assert_called_once_with(str(target), str(link_path), target_is_directory=True)
+
+    def test_create_link_windows_fallback_winapi(self):
         target = self.repo_root / "skill-1"
         link_path = self.host_root / "winapi-link"
         mock_winapi = MagicMock()
 
         with patch("sys.platform", "win32"), \
+             patch("os.symlink", side_effect=OSError("privilege not held")), \
              patch.dict("sys.modules", {"_winapi": mock_winapi}):
             create_link(target, link_path)
             mock_winapi.CreateJunction.assert_called_once_with(str(target), str(link_path))
 
-    def test_create_link_windows_mklink(self):
+    def test_create_link_windows_fallback_mklink(self):
         target = self.repo_root / "skill-1"
         link_path = self.host_root / "mklink-link"
 
         with patch("sys.platform", "win32"), \
+             patch("os.symlink", side_effect=OSError("privilege not held")), \
              patch.dict("sys.modules", {"_winapi": None}), \
              patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
@@ -227,18 +238,6 @@ class TestLink(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-
-    def test_create_link_windows_fallback_symlink(self):
-        target = self.repo_root / "skill-1"
-        link_path = self.host_root / "fallback-link"
-
-        with patch("sys.platform", "win32"), \
-             patch.dict("sys.modules", {"_winapi": None}), \
-             patch("subprocess.run") as mock_run, \
-             patch("os.symlink") as mock_symlink:
-            mock_run.return_value = MagicMock(returncode=1)
-            create_link(target, link_path)
-            mock_symlink.assert_called_once_with(str(target), str(link_path), target_is_directory=True)
 
     def test_remove_link_or_dir_windows(self):
         mock_path = MagicMock(spec=Path)
