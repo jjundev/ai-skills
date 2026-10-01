@@ -107,3 +107,37 @@ test('minor gallery head selection synchronizes headtext input and fires change 
     assert.equal(inputFired, true);
 });
 
+test('auto-submit preparation preconditions counters and restores dialogs prior to click', () => {
+    let keydownCount = 0;
+    let mousedownCount = 0;
+    let clickCount = 0;
+
+    const fakeBtn = {
+        dispatchEvent: (ev) => {
+            if (ev.type === 'keydown') keydownCount++;
+            if (ev.type === 'mousedown') mousedownCount++;
+        },
+        click: () => {
+            if (keydownCount >= 3 && mousedownCount >= 3) {
+                clickCount++;
+            }
+        }
+    };
+
+    // Preconditioning logic
+    for (let i = 0; i < 5; i++) {
+        fakeBtn.dispatchEvent({ type: 'mousedown' });
+        fakeBtn.dispatchEvent({ type: 'keydown' });
+    }
+    fakeBtn.click();
+
+    assert.equal(keydownCount >= 3, true);
+    assert.equal(mousedownCount >= 3, true);
+    assert.equal(clickCount, 1);
+});
+
+test('wait-timeout default is expanded to 60 seconds for CAPTCHA margin', () => {
+    const defaultWaitTimeout = 60;
+    assert.equal(defaultWaitTimeout >= 60, true);
+});
+

@@ -20,7 +20,7 @@ cli({
         { name: 'head', type: 'string', help: 'Head category code or name (e.g. 10 or 일반)' },
         { name: 'mgallery', type: 'bool', default: false, help: 'Target minor gallery' },
         { name: 'no-submit', type: 'bool', default: false, help: 'Fill form only without clicking submit (useful for manual review or CAPTCHA resolution)' },
-        { name: 'wait-timeout', type: 'int', default: 30, help: 'Seconds to wait for redirect or manual CAPTCHA completion (1-300s)' },
+        { name: 'wait-timeout', type: 'int', default: 60, help: 'Seconds to wait for redirect or manual CAPTCHA completion (1-300s)' },
     ],
     columns: ['success', 'galleryId', 'title', 'url', 'message'],
     func: async (page, args) => {
@@ -152,38 +152,39 @@ cli({
             throw new CommandExecutionError(`Failed to populate post content: ${fillResult?.reason ?? 'Editor DOM not ready'}`);
         }
 
-        // If no-submit requested, restore native dialogs and pre-condition anti-bot counters, then return
+        // Always restore native dialogs and precondition anti-bot interaction counters
+        await page.evaluate(() => {
+            // 1. Restore native alert and confirm
+            if (window.__origAlert) window.alert = window.__origAlert;
+            else delete window.alert;
+            if (window.__origConfirm) window.confirm = window.__origConfirm;
+            else delete window.confirm;
+
+            // Fallback to iframe native prototype if still tainted
+            if (!window.alert || window.alert.toString().indexOf('[native code]') === -1) {
+                try {
+                    const f = document.createElement('iframe');
+                    f.style.display = 'none';
+                    document.body.appendChild(f);
+                    window.alert = f.contentWindow.alert.bind(window);
+                    window.confirm = f.contentWindow.confirm.bind(window);
+                } catch {}
+            }
+
+            // 2. Pre-condition anti-bot interaction counters on submit button (t.kd >= 3, t.md >= 3)
+            const submitBtn = document.querySelector(
+                '.btn_blue.btn_svc.write, .btn_blue.btn_svc.write_btn, .btn_apply, button[class*="write"]'
+            );
+            if (submitBtn) {
+                for (let i = 0; i < 5; i++) {
+                    submitBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    submitBtn.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+                }
+            }
+        });
+
+        // If no-submit requested, return immediately after preconditioning
         if (noSubmit) {
-            await page.evaluate(() => {
-                // 1. Restore native alert and confirm
-                if (window.__origAlert) window.alert = window.__origAlert;
-                else delete window.alert;
-                if (window.__origConfirm) window.confirm = window.__origConfirm;
-                else delete window.confirm;
-
-                // Fallback to iframe native prototype if still tainted
-                if (!window.alert || window.alert.toString().indexOf('[native code]') === -1) {
-                    try {
-                        const f = document.createElement('iframe');
-                        f.style.display = 'none';
-                        document.body.appendChild(f);
-                        window.alert = f.contentWindow.alert.bind(window);
-                        window.confirm = f.contentWindow.confirm.bind(window);
-                    } catch {}
-                }
-
-                // 2. Pre-condition anti-bot interaction counters on submit button
-                const submitBtn = document.querySelector(
-                    '.btn_blue.btn_svc.write, .btn_blue.btn_svc.write_btn, .btn_apply, button[class*="write"]'
-                );
-                if (submitBtn) {
-                    for (let i = 0; i < 5; i++) {
-                        submitBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                        submitBtn.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-                    }
-                }
-            });
-
             return [{
                 success: true,
                 galleryId,
@@ -195,7 +196,11 @@ cli({
 
         // If CAPTCHA is present, do NOT submit immediately to avoid triggering client validation alert
         if (fillResult.hasCaptcha) {
-            console.warn('[DCInside OpenCLI] CAPTCHA detected. Please complete CAPTCHA in Chrome browser.');
+            console.warn('[DCInside OpenCLI] CAPTCHA detected. Please complete CAPTCHA in Chrome browser window.');
+            try {
+                const { execSync } = await import('node:child_process');
+                execSync("osascript -e 'tell application \"Google Chrome\" to activate'");
+            } catch {}
         } else {
             // Attempt submission if no CAPTCHA is actively displayed
             await page.evaluate(() => {
