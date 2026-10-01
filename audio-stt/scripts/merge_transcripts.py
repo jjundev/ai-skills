@@ -49,8 +49,6 @@ def merge_transcripts(
 
     full_content = [
         f"# {prefix or os.path.basename(target_dir)} 전체 오디오 전사본\n\n",
-        f"- **총 세그먼트**: {len(part_files)}개 파트 (각 약 {segment_seconds // 60}분)\n",
-        f"- **파트 목록**: " + ", ".join([f[1] for f in part_files]) + "\n\n---\n\n"
     ]
 
     for part_num, p_file in part_files:

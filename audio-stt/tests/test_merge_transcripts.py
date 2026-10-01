@@ -63,10 +63,13 @@ class TestMergeTranscripts(unittest.TestCase):
         with open(expected_output, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Check content includes both parts
+        # Check content includes both parts and does NOT include segment metadata
         self.assertIn("전체 오디오 전사본", content)
         self.assertIn("This is part one speaking.", content)
         self.assertIn("This is part two speaking.", content)
+        self.assertNotIn("총 세그먼트", content)
+        self.assertNotIn("파트 목록", content)
+        self.assertNotIn("---", content)
 
         # Check that intermediate parts were cleaned up
         self.assertFalse(os.path.exists(part1_path), "part01.md should be deleted")
@@ -291,6 +294,35 @@ class TestMergeTranscripts(unittest.TestCase):
         self.assertNotIn("## Part 01 (00:00 ~ )", c3)
         self.assertNotIn("00:10", c3)
         self.assertIn("CLI test text.", c3)
+
+    def test_merge_transcripts_no_segment_metadata(self):
+        """
+        Verify that merged transcript does not contain segment metadata bullets
+        (- **총 세그먼트**: ..., - **파트 목록**: ...) or redundant horizontal rule.
+        """
+        part1_path = os.path.join(self.test_dir, "sample_part01.md")
+        part2_path = os.path.join(self.test_dir, "sample_part02.md")
+
+        with open(part1_path, "w", encoding="utf-8") as f:
+            f.write("첫 번째 파트 발화 내용입니다.\n")
+        with open(part2_path, "w", encoding="utf-8") as f:
+            f.write("두 번째 파트 발화 내용입니다.\n")
+
+        result = merge_transcripts(self.test_dir, prefix="sample", keep_parts=True)
+        self.assertTrue(os.path.isfile(result))
+
+        with open(result, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Metadata bullets and horizontal divider must NOT be present
+        self.assertNotIn("총 세그먼트", content)
+        self.assertNotIn("파트 목록", content)
+        self.assertNotIn("---", content)
+
+        # Title and parts should be cleanly formatted
+        self.assertTrue(content.startswith("# sample 전체 오디오 전사본\n\n## Part 01\n"))
+        self.assertIn("첫 번째 파트 발화 내용입니다.", content)
+        self.assertIn("두 번째 파트 발화 내용입니다.", content)
 
     def test_merge_transcripts_safety_on_error(self):
         """
