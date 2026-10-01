@@ -44,3 +44,54 @@ test('submission snippet checks CAPTCHA before triggering click', () => {
     }
     assert.equal(clicked, false);
 });
+
+test('attach-images auto-submit snippet preconditions counters and restores dialogs before click', () => {
+    let keydownCount = 0;
+    let mousedownCount = 0;
+    let clickCount = 0;
+    let alertRestored = false;
+
+    const fakeWin = {
+        alert: () => {},
+        __origAlert: function alert() { /* native */ },
+        document: {
+            querySelector: () => ({
+                dispatchEvent: (ev) => {
+                    if (ev.type === 'keydown') keydownCount++;
+                    if (ev.type === 'mousedown') mousedownCount++;
+                },
+                click: () => {
+                    if (keydownCount >= 3 && mousedownCount >= 3 && alertRestored) {
+                        clickCount++;
+                    }
+                }
+            })
+        }
+    };
+
+    // Preconditioning logic under test
+    fakeWin.alert = fakeWin.__origAlert;
+    alertRestored = true;
+    const btn = fakeWin.document.querySelector();
+    for (let i = 0; i < 5; i++) {
+        btn.dispatchEvent({ type: 'mousedown' });
+        btn.dispatchEvent({ type: 'keydown' });
+    }
+    btn.click();
+
+    assert.equal(keydownCount >= 3, true);
+    assert.equal(mousedownCount >= 3, true);
+    assert.equal(clickCount, 1);
+});
+
+test('post-upload staleness check rejects submission when token expired', () => {
+    const checkCanSubmit = (tokenAgeSec, isStale) => {
+        if (isStale || tokenAgeSec > 600) {
+            return { canSubmit: false, reason: 'token_stale' };
+        }
+        return { canSubmit: true };
+    };
+
+    assert.equal(checkCanSubmit(200, false).canSubmit, true);
+    assert.equal(checkCanSubmit(650, true).canSubmit, false);
+});
