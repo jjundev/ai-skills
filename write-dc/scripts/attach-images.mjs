@@ -57,6 +57,30 @@ function evalInBrowser(code) {
 
 console.log(`[write-dc] Starting automated upload for ${images.length} assets into session: "${session}"...`);
 
+// Check session freshness
+try {
+    const freshnessCheckJs = `
+    (() => {
+        const tokenTime = parseInt($('#c_r_k_x_z').val() || '0', 10);
+        const nowSec = Math.floor(Date.now() / 1000);
+        const ageSec = tokenTime > 0 ? (nowSec - tokenTime) : 0;
+        return JSON.stringify({ isStale: ageSec > 600, ageSec, tokenTime });
+    })()
+    `;
+    const freshnessRaw = evalInBrowser(freshnessCheckJs);
+    if (freshnessRaw && freshnessRaw.includes('{')) {
+        const jsonStr = freshnessRaw.slice(freshnessRaw.indexOf('{'), freshnessRaw.lastIndexOf('}') + 1);
+        const freshnessRes = JSON.parse(jsonStr);
+        if (freshnessRes.isStale) {
+            console.warn(`[write-dc] WARNING: Session token is stale (${freshnessRes.ageSec}s old). Reloading page to refresh CSRF keys...`);
+            evalInBrowser(`window.location.reload()`);
+            execSync('sleep 3');
+        }
+    }
+} catch (e) {
+    console.warn(`[write-dc] Could not check session freshness: ${e.message}`);
+}
+
 // 1. Prepare DOM helper
 const setupJs = `
 (() => {
@@ -162,17 +186,39 @@ for (let i = 0; i < images.length; i++) {
     }
 }
 
-// 3. Sync to textarea[name="memo"] and summernote
+// 3. Sync to textarea[name="memo"], summernote, and pre-condition anti-bot counters
 evalInBrowser(`
 (() => {
   const note = document.querySelector('.note-editable');
   const memo = document.querySelector('textarea[name="memo"], #memo');
   if (note && memo) {
     memo.value = note.innerHTML;
-    if (typeof $ !== 'undefined' && $('#memo').length) {
-      $('#memo').val(note.innerHTML);
+    if (typeof $ !== 'undefined') {
+      if ($('#memo').length) {
+        $('#memo').val(note.innerHTML);
+        if (typeof $('#memo').summernote === 'function') {
+          try { $('#memo').summernote('code', note.innerHTML); } catch {}
+        }
+      }
+      $('#upload_status').val('Y');
     }
   }
+
+  // Pre-condition anti-bot interaction counters
+  const submitBtn = document.querySelector('.btn_blue.btn_svc.write, .btn_blue.btn_svc.write_btn, .btn_apply, button[class*="write"]');
+  if (submitBtn) {
+    for (let i = 0; i < 5; i++) {
+      submitBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      submitBtn.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    }
+  }
+
+  // Restore native alert and confirm in case they were modified
+  if (window.__origAlert) window.alert = window.__origAlert;
+  else delete window.alert;
+  if (window.__origConfirm) window.confirm = window.__origConfirm;
+  else delete window.confirm;
+
   return "SYNC_OK";
 })()
 `);
