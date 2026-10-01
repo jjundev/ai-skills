@@ -100,6 +100,12 @@ cli({
                             const text = item.textContent.trim();
                             if (no === head || val === head || val.includes(head) || text.includes(head)) {
                                 item.click();
+                                const headInput = document.querySelector('input[name="headtext"], #headtext');
+                                if (headInput) {
+                                    if (!headInput.value && no) headInput.value = no;
+                                    headInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                    headInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
                                 break;
                             }
                         }

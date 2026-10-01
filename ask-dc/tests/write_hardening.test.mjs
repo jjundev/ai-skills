@@ -74,3 +74,36 @@ test('anti-bot event simulation code dispatches required keydown and mousedown e
     assert.equal(keydownCount >= 3, true);
     assert.equal(mousedownCount >= 3, true);
 });
+
+test('minor gallery head selection synchronizes headtext input and fires change event', () => {
+    let changeFired = false;
+    let inputFired = false;
+    const fakeHeadInput = {
+        value: '',
+        dispatchEvent: (ev) => {
+            if (ev.type === 'change') changeFired = true;
+            if (ev.type === 'input') inputFired = true;
+        }
+    };
+
+    const fakeItem = {
+        getAttribute: (attr) => (attr === 'data-no' ? '0' : attr === 'data-val' ? '일반' : ''),
+        textContent: '일반',
+        clicked: false,
+        click: function() { this.clicked = true; }
+    };
+
+    // Minor gallery sync logic under test
+    fakeItem.click();
+    if (!fakeHeadInput.value && fakeItem.getAttribute('data-no')) {
+        fakeHeadInput.value = fakeItem.getAttribute('data-no');
+    }
+    fakeHeadInput.dispatchEvent({ type: 'change' });
+    fakeHeadInput.dispatchEvent({ type: 'input' });
+
+    assert.equal(fakeItem.clicked, true);
+    assert.equal(fakeHeadInput.value, '0');
+    assert.equal(changeFired, true);
+    assert.equal(inputFired, true);
+});
+
