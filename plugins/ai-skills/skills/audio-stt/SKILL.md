@@ -21,7 +21,7 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    - Default transcription outputs natural paragraphs (2~4 sentences per paragraph, separated by blank lines `\n\n`) without timestamps.
    - Timestamps (`MM:SS`) are generated only when `--timestamps`, `-t`, or user explicitly asks (e.g., '타임스탬프 포함').
 5. **Unified Single-File Output & Clean Workspace**:
-   - Both short (<= 10 min) and long (> 10 min) audio default to producing a single `.md` file (`<NAME>.md`).
+   - Both short (<= 10 min) and long (> 10 min) audio default to producing a single `.md` file (`<NAME>.md`) containing clean transcribed speech without intermediate segment metadata or temporary file lists.
    - Intermediate chunk files (`_part*.mp3`, `_part*.md`, `*_temp.mp4`) are automatically cleaned up upon successful merge.
    - Retain intermediate segment files with `--keep-parts` when explicitly requested by user (e.g., "중간 파일도 남겨줘", "파트별 파일 보존").
 
@@ -147,5 +147,5 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 - [ ] Verbatim transcription from start to finish without omission.
 - [ ] Subagents operate in a single pass without tangent diagnostic loops.
 - [ ] Verbatim transcription without timestamps by default (or with `MM:SS` when `--timestamps` is requested).
-- [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) for both short and long audio.
+- [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) without intermediate segment metadata or temporary file lists.
 - [ ] Intermediate chunk files cleaned up by default (or preserved only if `--keep-parts` was requested).
