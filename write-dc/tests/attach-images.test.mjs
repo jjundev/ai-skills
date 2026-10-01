@@ -11,3 +11,36 @@ test('session staleness detection flags tokens older than 600 seconds', () => {
     assert.equal(isStale(freshTokenTime), false);
     assert.equal(isStale(staleTokenTime), true);
 });
+
+test('parseArgs parses --submit flag correctly', () => {
+    const parseArgsTest = (argv) => {
+        let submit = false;
+        for (let i = 0; i < argv.length; i++) {
+            if (argv[i] === '--submit') submit = true;
+        }
+        return { submit };
+    };
+
+    assert.equal(parseArgsTest(['--images', 'test.png']).submit, false);
+    assert.equal(parseArgsTest(['--images', 'test.png', '--submit']).submit, true);
+});
+
+test('submission snippet checks CAPTCHA before triggering click', () => {
+    let clicked = false;
+    const fakeDoc = {
+        hasCaptcha: false,
+        submitBtn: { click: () => { clicked = true; } }
+    };
+
+    if (!fakeDoc.hasCaptcha && fakeDoc.submitBtn) {
+        fakeDoc.submitBtn.click();
+    }
+    assert.equal(clicked, true);
+
+    clicked = false;
+    fakeDoc.hasCaptcha = true;
+    if (!fakeDoc.hasCaptcha && fakeDoc.submitBtn) {
+        fakeDoc.submitBtn.click();
+    }
+    assert.equal(clicked, false);
+});

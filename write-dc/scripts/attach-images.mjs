@@ -19,12 +19,15 @@ function parseArgs() {
     let session = 'dcinside';
     let draftPath = null;
     const images = [];
+    let shouldSubmit = false;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--session' && args[i + 1]) {
             session = args[++i];
         } else if (args[i] === '--draft' && args[i + 1]) {
             draftPath = args[++i];
+        } else if (args[i] === '--submit') {
+            shouldSubmit = true;
         } else if (args[i] === '--images') {
             while (i + 1 < args.length && !args[i + 1].startsWith('--')) {
                 images.push(args[++i]);
@@ -32,10 +35,10 @@ function parseArgs() {
         }
     }
 
-    return { session, draftPath, images };
+    return { session, draftPath, images, shouldSubmit };
 }
 
-const { session, draftPath, images } = parseArgs();
+const { session, draftPath, images, shouldSubmit } = parseArgs();
 
 if (images.length === 0) {
     console.error('Error: No image files provided. Usage: node attach-images.mjs --images <file1> <file2> ...');
@@ -227,5 +230,55 @@ evalInBrowser(`
 try {
     execSync("osascript -e 'tell application \"Google Chrome\" to activate'");
 } catch {}
+
+// 5. If --submit requested, verify CAPTCHA and auto-submit
+if (shouldSubmit) {
+    console.log('[write-dc] --submit flag detected. Checking CAPTCHA and submitting post...');
+    const submitCheckJs = `
+    (() => {
+        const hasCaptcha = Boolean(document.querySelector('.kcaptcha, #kcaptcha, #captcha_box, input[name="code"]'));
+        if (hasCaptcha) {
+            return JSON.stringify({ submitted: false, hasCaptcha: true });
+        }
+        const submitBtn = document.querySelector(
+            '.btn_blue.btn_svc.write, .btn_blue.btn_svc.write_btn, .btn_apply, button[class*="write"]'
+        );
+        if (submitBtn) {
+            submitBtn.click();
+            return JSON.stringify({ submitted: true, hasCaptcha: false });
+        }
+        return JSON.stringify({ submitted: false, hasCaptcha: false, error: 'Submit button not found' });
+    })()
+    `;
+    const submitResRaw = evalInBrowser(submitCheckJs);
+    let submitRes = {};
+    try {
+        submitRes = JSON.parse(submitResRaw.slice(submitResRaw.indexOf('{'), submitResRaw.lastIndexOf('}') + 1));
+    } catch {}
+
+    if (submitRes.hasCaptcha) {
+        console.warn('[write-dc] ⚠️ CAPTCHA detected! Please complete CAPTCHA in the opened Chrome window.');
+        try {
+            execSync("osascript -e 'tell application \"Google Chrome\" to activate'");
+        } catch {}
+    } else if (submitRes.submitted) {
+        console.log('[write-dc] Submit clicked. Waiting for redirect to view page...');
+        const startWait = Date.now();
+        let redirectedUrl = null;
+        while (Date.now() - startWait < 45000) {
+            execSync('sleep 2');
+            const currentUrl = evalInBrowser('window.location.href').trim();
+            if (currentUrl.includes('/board/view/') || currentUrl.includes('/mgallery/board/view/')) {
+                redirectedUrl = currentUrl;
+                break;
+            }
+        }
+        if (redirectedUrl) {
+            console.log(`[write-dc] ✅ Post published successfully: ${redirectedUrl}`);
+        } else {
+            console.warn('[write-dc] ⚠️ Submission initiated, but redirect did not complete within 45s. Check Chrome window.');
+        }
+    }
+}
 
 console.log(`[write-dc] Successfully uploaded and embedded all ${images.length} assets!`);
