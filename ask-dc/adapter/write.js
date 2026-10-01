@@ -41,8 +41,10 @@ cli({
         // Disable checkAuth because write form contains anonymous password input and sidebar login form
         await navigateToDcinside(page, writeUrl, 'DCInside post compose', { checkAuth: false });
 
-        // Suppress browser modal dialogs (alert, confirm) to avoid CDP hang/crash
+        // Suppress browser modal dialogs (alert, confirm) during fill to avoid CDP hang/crash
         await page.evaluate(() => {
+            window.__origAlert = window.alert;
+            window.__origConfirm = window.confirm;
             window.alert = (msg) => console.warn('[DCInside OpenCLI] Suppressed alert dialog:', msg);
             window.confirm = () => true;
         });
@@ -124,6 +126,9 @@ cli({
                 if (noteEditable) {
                     noteEditable.innerHTML = content.replace(/\n/g, '<br>');
                     noteEditable.dispatchEvent(new Event('input', { bubbles: true }));
+                    if (typeof $ !== 'undefined' && $('#memo').length && typeof $('#memo').summernote === 'function') {
+                        try { $('#memo').summernote('code', content.replace(/\n/g, '<br>')); } catch {}
+                    }
                     contentSet = true;
                 }
 
@@ -141,8 +146,38 @@ cli({
             throw new CommandExecutionError(`Failed to populate post content: ${fillResult?.reason ?? 'Editor DOM not ready'}`);
         }
 
-        // If no-submit requested, return immediately
+        // If no-submit requested, restore native dialogs and pre-condition anti-bot counters, then return
         if (noSubmit) {
+            await page.evaluate(() => {
+                // 1. Restore native alert and confirm
+                if (window.__origAlert) window.alert = window.__origAlert;
+                else delete window.alert;
+                if (window.__origConfirm) window.confirm = window.__origConfirm;
+                else delete window.confirm;
+
+                // Fallback to iframe native prototype if still tainted
+                if (!window.alert || window.alert.toString().indexOf('[native code]') === -1) {
+                    try {
+                        const f = document.createElement('iframe');
+                        f.style.display = 'none';
+                        document.body.appendChild(f);
+                        window.alert = f.contentWindow.alert.bind(window);
+                        window.confirm = f.contentWindow.confirm.bind(window);
+                    } catch {}
+                }
+
+                // 2. Pre-condition anti-bot interaction counters on submit button
+                const submitBtn = document.querySelector(
+                    '.btn_blue.btn_svc.write, .btn_blue.btn_svc.write_btn, .btn_apply, button[class*="write"]'
+                );
+                if (submitBtn) {
+                    for (let i = 0; i < 5; i++) {
+                        submitBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                        submitBtn.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+                    }
+                }
+            });
+
             return [{
                 success: true,
                 galleryId,
