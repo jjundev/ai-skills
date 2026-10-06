@@ -16,6 +16,7 @@ def merge_transcripts(
     keep_parts: bool = False,
     output_file: str = "",
     timestamps: bool = False,
+    speakers: list = None,
 ) -> str:
     target_dir = os.path.abspath(target_dir)
     pattern = re.compile(rf"^{re.escape(prefix)}.*part(\d+)\.md$" if prefix else r"^.*part(\d+)\.md$")
@@ -93,6 +94,18 @@ def merge_transcripts(
 
     print(f"Successfully generated: {output_path}")
 
+    if speakers:
+        allowed = {s.strip() for s in speakers if s.strip()} | {"화자?"}
+        label_pattern = re.compile(r"^\*\*(.+?):\*\*", re.MULTILINE)
+        found = set(label_pattern.findall(cleaned_text))
+        unknown = sorted(found - allowed)
+        if unknown:
+            print(
+                "Warning: speaker labels not in --speakers roster: "
+                + ", ".join(repr(u) for u in unknown),
+                file=sys.stderr,
+            )
+
     if not keep_parts:
         media_pattern = re.compile(
             rf"^{re.escape(prefix)}.*(part.*|.*_temp)\.(mp3|mp4)$" if prefix else r"^.*(part.*|.*_temp)\.(mp3|mp4)$",
@@ -143,6 +156,11 @@ def main():
         default=False,
         help="Include continuous MM:SS timestamps in merged transcript (default: False)",
     )
+    parser.add_argument(
+        "--speakers",
+        default="",
+        help="Comma-separated speaker labels; warns on labels outside this roster",
+    )
     args = parser.parse_args()
 
     out = merge_transcripts(
@@ -152,6 +170,7 @@ def main():
         keep_parts=args.keep_parts,
         output_file=args.output,
         timestamps=args.timestamps,
+        speakers=[x for x in args.speakers.split(",") if x.strip()],
     )
     if not out:
         sys.exit(1)

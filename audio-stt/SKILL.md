@@ -1,16 +1,28 @@
 ---
 name: audio-stt
-description: Transcribe speech verbatim. By default outputs clean text without timestamps; use --timestamps or -t to include MM:SS timestamps. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.).
+description: [Gemini Only] Transcribe speech verbatim via native multimodal perception (`view_file`). Strictly requires Gemini models; fails on Claude/GPT. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.).
 ---
 
 # Audio STT (Direct Multimodal Transcription)
 
 Transcribe speech from audio/video files verbatim using native multimodal perception (`view_file`), bypassing external Whisper APIs.
 
+> [!IMPORTANT]
+> **Gemini 전용 스킬**: 본 스킬은 Gemini 모델의 네이티브 비디오/오디오 멀티모달(`view_file`) 인식 기능에 전적으로 의존합니다. 비디오/오디오 입력을 지원하지 않는 Claude, GPT 등의 비-Gemini 모델에서는 절대 실행하지 마십시오.
+
 ---
 
 ## 🧠 Core Principles
 
+0. **Model Compatibility Gate (STRICT - GEMINI ONLY)**:
+   - This skill strictly requires a Gemini multimodal model (e.g. Gemini 1.5, Gemini 2.0, Gemini 2.5, Gemini 3.x).
+   - If the active model is NOT Gemini (e.g. Claude 3.5/3.7, GPT-4o, o1/o3, Llama, DeepSeek):
+     - **STOP IMMEDIATELY BEFORE EXECUTING ANY COMMANDS.**
+     - Do NOT run `ffmpeg`, `ffprobe`, create temp directories, or call `view_file`.
+     - Output the following notice to the user and terminate the task immediately:
+       > ⚠️ **audio-stt 스킬은 Gemini 모델 전용입니다.**  
+       > 본 스킬은 Gemini의 네이티브 오디오 멀티모달 인식(`view_file`)을 사용하므로, 비디오/오디오 바이너리 입력을 처리할 수 없는 Claude 및 GPT 모델에서는 동작하지 않습니다.  
+       > 모델 선택을 **Gemini(Gemini 2.5 / 3.0 등)**로 변경하신 후 다시 요청해 주세요.
 1. **Verbatim Fidelity**: Transcribe every spoken utterance word-for-word without skipping, summarizing, or rephrasing.
 2. **Deterministic Preprocessing (MP4 Wrapper)**:
    - `view_file` ingests video/image/PDF binaries directly into the model's multimodal context. Raw audio formats (`.mp3`, `.wav`, `.m4a`) can hit MIME-type delivery limits.
@@ -27,10 +39,20 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 6. **Zero External/Local Model Dependencies (STRICT - NO WHISPER)**:
    - NEVER search for, install, download, or execute external or local STT models under ANY circumstances (e.g. `whisper`, `mlx-whisper`, `faster-whisper`, `torch`, HuggingFace models, OpenAI Whisper API).
    - All transcription MUST rely solely on native multimodal perception (`view_file`).
+7. **Speaker Diarization (화자 설명 필수)**:
+   - **Trigger**: the user's prompt mentions speakers (e.g., "화자 구분", "화자 분리", "누가 말했는지", "대화자", `--speakers`, `-s`). If no such expression appears, transcribe as a single stream with NO speaker labels.
+   - **Gate (BEFORE any ffmpeg/preprocessing)**: diarization requires a speaker description for every speaker, in the form `라벨: 특징` (특징 = 성별·연령대·역할·말투·음색 중 1개 이상). Example: `--speakers "진행자: 30대 남성, 낮은 목소리 / 게스트: 40대 여성, 교수"`.
+     - Description missing, or names only (no 특징) → STOP, do not transcribe, and ask the user for `라벨: 특징` per speaker. NEVER invent labels such as "화자1/화자2".
+     - Only one speaker described → skip diarization and transcribe normally.
+   - **Labels**: use the roster's label spelling exactly. If a speaker cannot be matched to the roster, use the single label `화자?` (never guess the nearest speaker, never invent new labels).
+   - **Format**: start a new paragraph on every speaker change and prefix with `**라벨:**`. With timestamps, keep `MM:SS` on its own line followed by the labeled line.
 
 ---
 
 ## 🛠️ Workflow A: Single File (<= 10 Minutes)
+
+0. **Model Compatibility Check (Gate 0)**:
+   - Verify active agent model is Gemini. If non-Gemini (Claude, GPT, etc.), emit Gate 0 notice and STOP immediately without running any commands.
 
 1. **Wrap in MP4 Container (Exact Duration Match)**:
    ```bash
@@ -39,6 +61,7 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    ```
 2. **Perceive via `view_file`**: Call `view_file` on `_temp_stt.mp4`.
    - **Default (Plain Text)**: Transcribe all spoken content verbatim into coherent paragraphs (2~4 sentences per paragraph, separated by blank lines `\n\n`) without `MM:SS` timestamps.
+   - **If diarization is triggered** (Principle 7, gate passed): keep the speaker roster in view and label every utterance per the Speaker Diarization format.
    - **If `--timestamps` / `-t` specified**: Transcribe with `MM:SS` timestamps preceding each speech segment.
 3. **Save Transcript**: Write verbatim markdown to `<AUDIO_DIR>/<NAME>.md`.
 4. **Cleanup**: `rm -f "<WORKSPACE>/_temp_stt.mp4"`
@@ -46,6 +69,9 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 ---
 
 ## ⚡ Workflow B: Long Audio (> 10 Minutes) with Parallel Subagents
+
+0. **Model Compatibility Check (Gate 0)**:
+   - Verify active agent model is Gemini. If non-Gemini (Claude, GPT, etc.), emit Gate 0 notice and STOP immediately without running any commands.
 
 1. **Split into 10-Minute Chunks**:
    ```bash
@@ -68,6 +94,15 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
    ```
 
 3. **Dispatch Parallel Subagents**: Concurrently spawn one `self` subagent per part.
+   - **Diarization Variant (Principle 7, gate passed)**: inject the IDENTICAL speaker roster block into every subagent prompt and replace instruction 3 with:
+     ```text
+     Speakers (use these exact labels; unmatched voice -> `화자?`):
+     - <라벨1>: <특징>
+     - <라벨2>: <특징>
+
+     3. Start a new paragraph on every speaker change, prefixed with `**라벨:**`. No timestamps unless instructed. Do not invent labels.
+     ```
+     With timestamps, put `MM:SS` on its own line, then the `**라벨:**` line below it.
    - **Subagent Prompt (Default - Clean Text without Timestamps)**:
      ```text
      You are a verbatim STT transcription agent.
@@ -111,6 +146,10 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
      ```bash
      python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --keep-parts
      ```
+   - **With Diarization (`--speakers`)**: pass the comma-separated labels only (not descriptions); the script warns on labels outside the roster (warning only, exit code 0):
+     ```bash
+     python3 /Users/hyunjun_macbook_pro/.gemini/config/skills/audio-stt/scripts/merge_transcripts.py --dir "<OUTPUT_DIR>" --prefix "<NAME>" --speakers "진행자,게스트"
+     ```
    - **Combined Options (`--timestamps --keep-parts`)**:
      Combine flags when both timestamps and part retention are needed:
      ```bash
@@ -143,6 +182,21 @@ Transcribe speech from audio/video files verbatim using native multimodal percep
 네, 계속 진행하도록 하겠습니다. 비대면 강의는 오늘 처음입니다.
 ```
 
+### With Diarization (`--speakers`)
+
+```text
+**진행자:** 오늘 주제는 채용 시장입니다.
+
+**게스트:** 네, 변화가 빠릅니다.
+```
+
+With `-t`:
+
+```text
+00:12
+**진행자:** 오늘 주제는 채용 시장입니다.
+```
+
 ---
 
 ## 🛡️ Safety Filter Recovery Protocol (Zero-Model Chunk Sub-slicing)
@@ -165,6 +219,7 @@ If Gemini's safety filter triggers on a specific chunk (e.g. `This request was b
 
 ## ✅ Completion Criteria
 
+- [ ] Active model verified as Gemini before running any commands (or stopped immediately with Gate 0 notice if non-Gemini).
 - [ ] Zero external or local STT models used (strictly no Whisper, mlx-whisper, faster-whisper, or external APIs).
 - [ ] Audio preprocessed with 1-fps black MP4 wrapper matching exact audio duration (`-t "$dur"`).
 - [ ] Verbatim transcription from start to finish without omission.
@@ -172,4 +227,6 @@ If Gemini's safety filter triggers on a specific chunk (e.g. `This request was b
 - [ ] Any safety filter triggers resolved exclusively via sub-slicing (2~3 min) and native `view_file`.
 - [ ] Verbatim transcription without timestamps by default (or with `MM:SS` when `--timestamps` is requested).
 - [ ] Saved as a single unified `.md` transcript (`<NAME>.md`) without intermediate segment metadata or temporary file lists.
+- [ ] Diarization only when speakers are mentioned; never started without a `라벨: 특징` description per speaker (asked instead).
+- [ ] Speaker labels identical across all parts; unmatched voices use `화자?` only.
 - [ ] Intermediate chunk files cleaned up by default (or preserved only if `--keep-parts` was requested).
