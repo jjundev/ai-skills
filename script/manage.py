@@ -8,7 +8,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from script import check, sync, link
+from script import check, check_plugins, sync, link
 from script.common import Color
 
 
@@ -38,6 +38,15 @@ def main(argv: list[str] | None = None) -> int:
     check_parser.add_argument("--json", action="store_true", help="Output JSON format")
     check_parser.add_argument("--target", help="Specific upstream target to check")
 
+    # check-plugins
+    check_plugins_parser = subparsers.add_parser(
+        "check-plugins",
+        help="Check update status for all AI plugins and skills",
+    )
+    check_plugins_parser.add_argument("--json", action="store_true", help="Output JSON format")
+    check_plugins_parser.add_argument("--skills-only", action="store_true", help="Check only AI skills upstreams")
+    check_plugins_parser.add_argument("--cli-only", action="store_true", help="Check only CLI plugins")
+
     # sync
     sync_parser = subparsers.add_parser("sync", help="Sync curated skills from upstream repositories")
     sync_parser.add_argument("--target", help="Specific upstream target to sync")
@@ -63,6 +72,17 @@ def main(argv: list[str] | None = None) -> int:
             forward_args.extend(["--target", args.target])
         forward_args.extend(unknown)
         return check.main(forward_args)
+
+    elif args.command == "check-plugins":
+        forward_args = []
+        if args.json:
+            forward_args.append("--json")
+        if args.skills_only:
+            forward_args.append("--skills-only")
+        if args.cli_only:
+            forward_args.append("--cli-only")
+        forward_args.extend(unknown)
+        return check_plugins.main(forward_args)
 
     elif args.command == "sync":
         forward_args = []

@@ -19,6 +19,13 @@ class TestManage(unittest.TestCase):
         self.assertEqual(code, 0)
         mock_check.assert_called_once_with(["--json", "--target", "superpowers"])
 
+    @patch("script.check_plugins.main")
+    def test_route_check_plugins(self, mock_check_plugins):
+        mock_check_plugins.return_value = 0
+        code = main(["check-plugins", "--json", "--skills-only"])
+        self.assertEqual(code, 0)
+        mock_check_plugins.assert_called_once_with(["--json", "--skills-only"])
+
     @patch("script.sync.main")
     def test_route_sync(self, mock_sync):
         mock_sync.return_value = 0

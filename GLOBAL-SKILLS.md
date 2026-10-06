@@ -29,7 +29,12 @@ Global host locations linked:
 ## Checking and Syncing Upstreams
 
 ```bash
-# Check if upstream skills have updates
+# Check update status for all AI plugins & skills (Superpowers, Caveman, HyperFrames, OpenCLI, Claude, etc.)
+./check_plugins.sh
+# or via unified manager:
+python3 script/manage.py check-plugins
+
+# Check upstream skill repositories only
 python3 script/manage.py check
 
 # Sync all allowlisted skills from upstream repos
