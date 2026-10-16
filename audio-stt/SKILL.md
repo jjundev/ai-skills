@@ -1,6 +1,6 @@
 ---
 name: audio-stt
-description: [Gemini Only] Transcribe speech verbatim via native multimodal perception (`view_file`). Strictly requires Gemini models; fails on Claude/GPT. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.).
+description: "[Gemini Only] Transcribe speech verbatim via native multimodal perception (`view_file`). Strictly requires Gemini models; fails on Claude/GPT. Use when user wants STT, transcription, or 음성 텍스트 변환 on media files (.mp3, .wav, .m4a, .mov, etc.)."
 ---
 
 # Audio STT (Direct Multimodal Transcription)
