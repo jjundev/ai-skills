@@ -15,19 +15,33 @@ This unlocks the FREE path for bgm/sfx/image/icon catalog search, TTS (voice), a
 npx hyperframes media-use resolve --doctor
 ```
 
+## Host HeyGen access (no CLI sign-in)
+
+A host app can give media-use HeyGen access of its own by setting
+`HEYGEN_API_BASE` (its gateway), `HEYGEN_API_KEY` (the token that gateway
+accepts) and, for a loopback gateway, `HEYGEN_ALLOW_HTTP=1`. The gateway adds
+the host's key, so it never enters the agent's environment, and every
+call is charged to that key's API credits. The `heygen` CLI honours the same
+variables, so `resolve` (bgm/sfx/image/icon/voice/avatar-video) and the audio
+engine's TTS all go through the host. With host access, skip CLI install and
+sign-in, prefer the host's own HeyGen tools where it has them, never fall back
+to a local or third-party generator on your own, and relay a refused call's
+message (for example "add a key in Settings > Account") as written.
+
 ## Providers
 
 media-use holds no keys; every external tool owns its auth. Generation is
 centered on the HeyGen CLI free-usage path. Install and authenticate `heygen`
-before resolving bgm/sfx/image/icon/voice/avatar-video. Local tools are opt-in
+before resolving bgm/sfx/image/icon/voice/avatar-video; music and sound effects from
+a host app's own tools need none of it. Local tools are opt-in
 alternatives where they exist: mflux for image, Kokoro for voice, Parakeet for
 transcription, and LTX for local video generation. `resolve` spec-checks
-AVAILABLE RAM for those local ladders (`describeModelLadder`); the agent can
-see the ladder and override.
+AVAILABLE RAM for those local ladders inside the CLI (the image tiers are listed
+in `references/operations.md`).
 
 | Type      | Provider / path                                                                                                                                                               |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| bgm/sfx   | heygen catalog free-usage path                                                                                                                                                |
+| bgm/sfx   | heygen catalog free-usage path; a host app's own music and sound tools come first                                                                                             |
 | image     | heygen search free-usage path; optional local mflux; codex `image_gen` upsell                                                                                                 |
 | voice     | heygen tts free-usage path; optional local **Kokoro** (free, on-device)                                                                                                       |
 | icon      | heygen asset search free-usage path                                                                                                                                           |
@@ -70,8 +84,7 @@ private, on-device path instead of or ahead of HeyGen for that type. Only
 | `npx hyperframes`  | Kokoro TTS (voice), Parakeet or whisper.cpp (transcribe), remove-background     | via the hyperframes CLI; Parakeet on macOS, Windows and glibc 2.32+ Linux: `npx hyperframes models install parakeet`; whisper.cpp is built on first use (Homebrew on macOS, else git+cmake) |
 
 The RAM-graded local-model shortlist + exact per-tier install/invoke lives in
-`scripts/lib/local-models.mjs` (the agent can read `describeModelLadder(cap, specs)`
-to see which model fits this machine). Without a tool on PATH, its provider
+the CLI's bundled media-use engine, not in the standalone skill. Without a tool on PATH, its provider
 prints a one-line diagnostic to stderr and resolve falls through where another
 provider exists (e.g. no `mflux` -> codex image upsell; no `parakeet-mlx` -> whisper.cpp).
 
