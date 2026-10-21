@@ -8,10 +8,12 @@ description: >-
 disable-model-invocation: true
 ---
 
-Input is an idea, usually one or two sentences ("add X to the app"). Output is a
-concrete design an implementer can act on. The interview still happens, but you play
-both sides: the user's turn is collapsed into one batched question round after the
-design is on the table.
+Design from an idea, playing both sides of the interview.
+Batch user questions once, after the design.
+
+Only a current invocation argument `--council` activates
+[question advice](references/council-questions.md); read it then. Quoted/example
+text and prior invocations do not activate it. Otherwise use the procedure below.
 
 ## Read-only
 Never edit project code, docs, or the design itself. Explore the codebase with
@@ -27,13 +29,15 @@ implementation starts only when the user says so, in a later turn.
 2. **Explore, then classify.** Read the code the change touches. Classify out loud:
    **bounded** (changes a flow that already exists in the repo) or **architectural**
    (new subsystem, new interfaces, or nothing existing to change). When in doubt,
-   architectural.
+   architectural. In council mode, apply question advice to unresolved intent now.
 3. **Pick an approach** (architectural only). Lay out 2–3 materially different
-   approaches in a table, choose one with a one-line reason. This is decision #0
+   approaches in a table, choose one with a one-line reason. In council mode, apply
+   question advice before adopting decision #0
    (value = the option letter). Bounded work skips this section.
 4. **Resolve decisions in dependency order.** Take the unresolved decision whose
    reversal would change the most others, answer it with your recommendation and a
-   one-line rationale, then its dependents. Prefer reading code over reasoning; cite
+   one-line rationale, then its dependents. In council mode, apply question advice
+   before adopting each answer. Prefer reading code over reasoning; cite
    `file:line` whenever a code fact backs the pick. Cosmetic leaf details get
    defaults in the spec, not table rows. Stop when an implementer could build without
    asking anything else; bounded work typically converges within about 8 rows.
@@ -45,6 +49,7 @@ implementation starts only when the user says so, in a later turn.
 
 ## Output format
 Match the language of the conversation, headings and labels included.
+Attempted council advice goes inside Decisions before Confident.
 
 ```
 # <Title>
