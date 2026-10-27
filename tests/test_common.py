@@ -8,7 +8,7 @@ import tempfile
 
 class TestConfigAndCommon(unittest.TestCase):
     def test_upstreams_configured(self):
-        expected_keys = {"superpowers", "caveman", "taste-skill", "hyperframes", "ecc"}
+        expected_keys = {"superpowers", "caveman", "taste-skill", "hyperframes", "ecc", "lateral-thinking"}
         self.assertEqual(set(UPSTREAMS.keys()), expected_keys)
         for name, cfg in UPSTREAMS.items():
             self.assertEqual(cfg.name, name)
