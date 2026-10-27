@@ -137,4 +137,23 @@ UPSTREAMS: dict[str, UpstreamConfig] = {
         commits_api_url="https://api.github.com/repos/affaan-m/ECC/commits?per_page=1",
         grep_pattern="sync ecc",
     ),
+    "lateral-thinking": UpstreamConfig(
+        name="lateral-thinking",
+        repo_url=os.environ.get("LATERAL_THINKING_REPO", "https://github.com/danium/lateral-thinking.git"),
+        skills=[
+            "lateral",
+            "analogy",
+            "concept-fan",
+            "inversion",
+            "post",
+            "provocation",
+            "random-stimulus",
+            "scamper",
+            "six-hats",
+            "worst-idea",
+        ],
+        version_type="commit",
+        commits_api_url="https://api.github.com/repos/danium/lateral-thinking/commits?per_page=1",
+        grep_pattern="sync lateral-thinking",
+    ),
 }
