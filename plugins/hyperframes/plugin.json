@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "hyperframes",
-  "version": "0.8.163",
+  "version": "0.8.207",
   "description": "HyperFrames by HeyGen. Write HTML, render video.",
   "author": {
     "name": "HeyGen",
