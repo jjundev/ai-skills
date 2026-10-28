@@ -204,7 +204,7 @@ def format_terminal_output(data: dict) -> str:
     skills = data.get("upstream_skills", {})
     if skills:
         lines.append(Color.bold("🧩 [2] 큐레이션 업스트림 플러그인 스킬셋 점검"))
-        lines.append(Color.gray("    (ai-skills 내부로 동기화 관리되는 5개 외부 스킬셋)"))
+        lines.append(Color.gray(f"    (ai-skills 내부로 동기화 관리되는 {len(skills)}개 외부 스킬셋)"))
         for idx, (name, item) in enumerate(skills.items(), 1):
             local_ver = item.get("local_version")
             local_sha = item.get("local_sha")
