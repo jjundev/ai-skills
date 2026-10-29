@@ -1,5 +1,8 @@
 // DCInside read backend over plain HTTPS. Imports nothing from OpenCLI so the
 // standalone CLI (scripts/dc.mjs) runs without it; list.js/read.js wrap it.
+import http from 'node:http';
+import https from 'node:https';
+import tls from 'node:tls';
 
 export const DCINSIDE_ORIGIN = 'https://gall.dcinside.com';
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
@@ -225,6 +228,65 @@ export function normalizeComment(raw) {
 
 // ---------- transport ----------
 
+// Built-in fetch ignores HTTPS_PROXY; behind a mandatory proxy (corporate networks,
+// cloud sandboxes) it gets an empty 200. Tunnel through the proxy with CONNECT instead.
+const nativeFetch = globalThis.fetch;
+
+function proxyFor(url) {
+    const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
+    if (!proxy) return null;
+    const noProxy = (process.env.NO_PROXY || process.env.no_proxy || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const host = url.hostname;
+    if (noProxy.some((rule) => rule === '*' || host === rule.replace(/^\*?\./, '') || host.endsWith(rule.startsWith('.') ? rule : `.${rule.replace(/^\*\./, '')}`))) return null;
+    return new URL(proxy);
+}
+
+// One-shot agent that hands https.request the already-tunneled socket.
+function tunnelAgent(socket, servername) {
+    const agent = new https.Agent({ keepAlive: false });
+    agent.createConnection = () => tls.connect({ socket, servername, ALPNProtocols: ['http/1.1'] });
+    return agent;
+}
+
+function proxiedRequest(url, proxy, { method = 'GET', body, headers = {} }) {
+    return new Promise((resolve, reject) => {
+        const auth = proxy.username ? { 'Proxy-Authorization': `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString('base64')}` } : {};
+        const connect = http.request({ host: proxy.hostname, port: proxy.port || 80, method: 'CONNECT', path: `${url.hostname}:${url.port || 443}`, headers: auth });
+        connect.on('error', reject);
+        connect.on('connect', (res, socket) => {
+            socket.on('error', reject);
+            if (res.statusCode !== 200) { socket.destroy(); reject(new Error(`Proxy CONNECT returned HTTP ${res.statusCode}`)); return; }
+            const payload = body === undefined ? undefined : String(body);
+            const req = https.request(url, {
+                method,
+                headers: payload === undefined ? headers : { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Content-Length': Buffer.byteLength(payload), ...headers },
+                agent: tunnelAgent(socket, url.hostname),
+            }, (response) => {
+                const chunks = [];
+                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('end', () => resolve({
+                    status: response.statusCode,
+                    location: response.headers.location ?? null,
+                    body: Buffer.concat(chunks).toString('utf8'),
+                }));
+                response.on('error', reject);
+            });
+            req.on('error', reject);
+            req.end(payload);
+        });
+        connect.end();
+    });
+}
+
+// Tests stub globalThis.fetch; only take the proxy path when fetch is the real one.
+async function send(url, init) {
+    const target = new URL(url);
+    const proxy = globalThis.fetch === nativeFetch ? proxyFor(target) : null;
+    if (proxy) return proxiedRequest(target, proxy, init);
+    const response = await fetch(url, { redirect: 'manual', ...init });
+    return { status: response.status, location: response.headers.get('location'), body: await response.text() };
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let lastRequestAt = 0;
 
@@ -235,7 +297,7 @@ export async function request(url, init = {}) {
         lastRequestAt = Date.now();
         let response;
         try {
-            response = await fetch(url, { redirect: 'manual', ...init, headers: { 'User-Agent': USER_AGENT, ...init.headers } });
+            response = await send(url, { ...init, headers: { 'User-Agent': USER_AGENT, ...init.headers } });
         } catch (error) {
             if (attempt === 0) { await sleep(timing.retryDelayMs); continue; }
             throw new DcError('NETWORK', `Request failed for ${url}: ${error?.message ?? error}`);
@@ -244,7 +306,11 @@ export async function request(url, init = {}) {
             await sleep(timing.retryDelayMs);
             continue;
         }
-        return { status: response.status, location: response.headers.get('location'), body: await response.text() };
+        // An empty 200 means something between us and DCInside swallowed the page.
+        if (response.status === 200 && response.body.length === 0) {
+            throw new DcError('BLOCKED', `Empty response from ${url} (check HTTPS_PROXY / network)`);
+        }
+        return response;
     }
 }
 
