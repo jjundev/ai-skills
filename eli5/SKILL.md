@@ -1,6 +1,6 @@
 ---
 name: eli5
-description: Explain a topic like I'm a 5 year old using a dead-simple visual HTML artifact with big pictures, diagrams, and few words. Use when the user types /eli5 <topic> or asks for a simple visual, picture-book style explanation of how something works.
+description: Explain a topic like I'm a 5 year old using a dead-simple visual HTML artifact with big pictures, diagrams, and few words. Use when the user types /eli5 [topic] or asks for a simple visual, picture-book style explanation of how something works.
 ---
 
 # eli5 — Explain Like I'm 5 (Visual Picture Explainer)

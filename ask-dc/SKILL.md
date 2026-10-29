@@ -4,7 +4,7 @@ description: >
   MUST USE when the user wants to search, research, or investigate DCInside (디시, 디시인사이드, 특정 갤러리)
   for ANY topic — including product reviews/buying guides, trending issues, drama, gaming updates,
   community sentiment, or specific gallery keyword search — e.g. "X 디시 반응 어때?", "X 살까 하는데 디시 여론 좀",
-  "디시에서 X 검색해줘", "OO 갤러리 최근 떡밥 알려줘", "/ask-dc <키워드>".
+  "디시에서 X 검색해줘", "OO 갤러리 최근 떡밥 알려줘", "/ask-dc [키워드]".
   Strictly restricted to DCInside only (no external communities).
 ---
 

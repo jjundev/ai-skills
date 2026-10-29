@@ -1,6 +1,6 @@
 ---
 name: hwp-to-pdf
-description: MUST USE when the user wants to convert HWP/HWPX documents to PDF — e.g. "HWP PDF로 변환해줘", "hwp to pdf", "한글 파일 변환", "/hwp-to-pdf", or batch converting HWP files across directories. Supports single-file conversion, high-speed multi-worker batch conversion, large file splitting (>50MB), and parallel subagent orchestration for multi-directory tasks.
+description: MUST USE when the user wants to convert HWP/HWPX documents to PDF — e.g. "HWP PDF로 변환해줘", "hwp to pdf", "한글 파일 변환", "/hwp-to-pdf", or batch converting HWP files across directories. Supports single-file conversion, high-speed multi-worker batch conversion, large file splitting (over 50MB), and parallel subagent orchestration for multi-directory tasks.
 ---
 
 # HWP to PDF Skill (`hwp-to-pdf`)

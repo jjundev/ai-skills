@@ -3,9 +3,9 @@ name: write-dc
 description: >
   MUST USE when the user wants to compose, draft, or post content on DCInside
   (디시, 디시인사이드, dcinside, 특정 갤러리 — e.g. "디시 글 써줘", "디시에 올려줘", "디시에 질문 올려봐",
-  "디시 게시글 작성", "노트북갤에 글 써줘", "/write-dc <주제>"). Orchestrates the local OpenCLI
+  "디시 게시글 작성", "노트북갤에 글 써줘", "/write-dc [주제]"). Orchestrates the local OpenCLI
   DCInside adapter (`opencli dcinside write`) with strict semi-auto safety (`--no-submit`),
-  pre-flight draft confirmation, automated inline image/GIF attachment pipeline (<10MB), and CAPTCHA guidance.
+  pre-flight draft confirmation, automated inline image/GIF attachment pipeline (under 10MB), and CAPTCHA guidance.
   NOT for: 디시인사이드 검색, 여론 조사, 떡밥 탐색, 게시글/댓글 조회 (조회·분석은 ask-dc 스킬 전용).
 ---
 
