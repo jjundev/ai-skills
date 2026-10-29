@@ -323,6 +323,12 @@ export async function getPage(url) {
         let next = null;
         if (response.status >= 300 && response.status < 400 && response.location) {
             next = new URL(response.location, target);
+            // DCInside 302s /board/ to /mgallery/board/?id=X, dropping page/search params; carry ours over.
+            if (next.origin === DCINSIDE_ORIGIN) {
+                for (const [key, value] of target.searchParams) {
+                    if (!next.searchParams.has(key)) next.searchParams.set(key, value);
+                }
+            }
         } else {
             const jsTarget = jsRedirectTarget(response.body);
             if (jsTarget) next = isLoginUrl(jsTarget) ? jsTarget : new URL(`${jsTarget.pathname}${target.search}`, DCINSIDE_ORIGIN);
